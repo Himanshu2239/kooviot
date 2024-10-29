@@ -22,18 +22,13 @@ const s3 = new AWS.S3({
   region: process.env.AWS_REGION,
 });
 
-// Define the temporary directory for file uploads
-const tempDirectory = path.join('/tmp', 'public', 'temp');
+// Use /tmp directory for temporary file storage
+const tempDirectory = '/tmp';
 
-// Ensure tempDirectory exists
-if (!fs.existsSync(tempDirectory)) {
-  fs.mkdirSync(tempDirectory, { recursive: true });
-}
-
-// Multer setup to store files in /tmp/public/temp
+// Multer setup to store files in /tmp
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, tempDirectory); // Save to /tmp/public/temp
+    cb(null, tempDirectory); // Save to /tmp directory
   },
   filename: function (req, file, cb) {
     cb(null, `${Date.now()}-${file.originalname}`);
@@ -82,7 +77,7 @@ const uploadFileForProduction = asynchandler(async (req, res) => {
   const { fileType, reportMonth, reportYear } = req.body;
   const { file } = req;
   const userId = req.user._id;
-
+  
   if (!file) {
     return res.status(400).json({ message: "File is required" });
   }
@@ -113,12 +108,17 @@ const uploadFileForProduction = asynchandler(async (req, res) => {
     await newFile.save();
 
     // Remove the file from temp folder
-    fs.unlinkSync(localFilePath);
+    fs.unlink(localFilePath, (err) => {
+      if (err) {
+        console.error("Error deleting temp file:", err);
+      }
+    });
 
     res
       .status(201)
       .json({ message: "File uploaded successfully", data: newFile });
   } catch (error) {
+    // If an error occurs during file system operations or any other step
     console.error("Error during file upload:", error);
 
     if (error.code === "ENOENT") {
@@ -229,7 +229,6 @@ const updateStocksForProduction = asynchandler(async (req, res) => {
     res.status(500).json({ message: "Server error", error });
   }
 });
-
 export {
   uploadFileForProduction,
   upload,
