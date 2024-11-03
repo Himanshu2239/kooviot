@@ -12,24 +12,25 @@ import { jobIds } from "../constant.js";
 
 // Salespersons data array
 const salesPersons = [
-  { id: "SP001", name: "Ravikumar N", jobId: "KIOL2238", area: "Bangalore" },
-  { id: "SP002", name: "Sugumar R", jobId: "KIOL2236", area: "Chennai, TN" },
-  { id: "SP003", name: "Vineesh Mehta", jobId: "KIOL2239", area: "Delhi" },
+  { id: "SP001", name: "Ravikumar", jobId: "KIOL2238", area: "Bangalore" },
+  { id: "SP002", name: "Sugumar", jobId: "KIOL2236", area: "Chennai, TN" },
+  { id: "SP003", name: "Vineesh", jobId: "KIOL2239", area: "Delhi" },
   {
     id: "SP004",
-    name: "Soma Naveen Chandra",
+    name: "Soma Naveen",
     jobId: "KIOL2070",
     area: "Hyderabad",
   },
   {
     id: "SP005",
-    name: "Bharat Lal Dubey",
+    name: "Bharat Lal",
     jobId: "KIOL2064",
     area: "Maharashtra",
   },
-  { id: "SP006", name: "Sushila Shaw", jobId: "KIOL2225", area: "Kolkata" },
+  { id: "SP006", name: "Sushila", jobId: "KIOL2225", area: "Kolkata" },
   { id: "SP007", name: "Ardhendu Aditya", jobId: "KIOL2234", area: "Kolkata" },
-  { id: "SP008", name: "Yogesh Lahoti", jobId: "KIOL2049", area: "Pan India" },
+  { id: "SP008", name: "Yogesh", jobId: "KIOL2049", area: "Pan India" },
+  
 ];
 
 // Initialize AWS S3
