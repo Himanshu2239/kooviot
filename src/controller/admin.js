@@ -8,6 +8,7 @@ import { FileUpload } from "../models/uploadDocument.js";
 import { GlobalPermission } from "../models/permission.js";
 import AWS from "aws-sdk";
 import path from "path";
+import { jobIds } from "../constant.js";
 
 // Salespersons data array
 const salesPersons = [
@@ -28,6 +29,7 @@ const salesPersons = [
   },
   { id: "SP006", name: "Sushila Shaw", jobId: "KIOL2225", area: "Kolkata" },
   { id: "SP007", name: "Ardhendu Aditya", jobId: "KIOL2234", area: "Kolkata" },
+  { id: "SP008", name: "Yogesh Lahoti", jobId: "KIOL2049", area: "Pan India" },
 ];
 
 // Initialize AWS S3
@@ -115,14 +117,19 @@ const assignMonthlyTargetToSalesperson = asynchandler(async (req, res) => {
 
 //jobId of salesperson, month, year
 const getMonthlyTargetStats = asynchandler(async (req, res) => {
-  const { jobId, month, year } = req.body;
+  let { jobId, month, year } = req.body;
 
+  console.log("month,year,jobId", month, year, jobId);
   // Validate inputs
   if (!jobId || !month || !year) {
     return res
       .status(400)
       .json({ message: "JobId, month, and year are required." });
   }
+  // Normalize year and month
+  year = year.toString().padStart(4, "0"); // Ensure year is a 4-digit string
+  month = month.toString().padStart(2, "0"); // Ensure month is two digits
+  // console.log("month,year", month, year);
 
   try {
     // Find the salesperson by jobId
@@ -388,15 +395,18 @@ const adminViewTasks = async (req, res) => {
 // Controller for adminFetchReport
 const adminFetchReport = async (req, res) => {
   try {
-    const { year, month, day } = req.body;
+    let { year, month, day } = req.body;
     const userId = req.productionUserId;
 
     // Validate required parameters
     if (!userId || !year || !month || !day) {
       return res.status(400).json({ message: "Missing required parameters." });
     }
-
+    // Normalize year, month, and day
+    year = year.toString(); // Ensure year is a string
+    day = day.toString().padStart(2, "0"); // Ensure day is two digits
     // Find the report for the production user
+
     const report = await MTDReport.findOne({ productionUser: userId }).populate(
       "productionUser"
     );
@@ -568,6 +578,69 @@ const getAllMonthlyTargetStats = asynchandler(async (req, res) => {
   }
 });
 
+//overall totalmonthlyTargets
+const getTotalMonthlyTargetsOverall = asynchandler(async (req, res) => {
+  let { month, year } = req.body;
+
+  // Validate input
+  if (!month || !year) {
+    return res.status(400).json({
+      message: "Month and year are required.",
+    });
+  }
+  year = year.toString().padStart(4, "0"); // Ensure year is a 4-digit string
+  month = month.toString().padStart(2, "0"); // Ensure month is two digits
+  try {
+    // Set the start and end dates of the month for querying targets
+    const startOfMonth = new Date(year, month - 1, 1);
+    const endOfMonth = new Date(year, month, 0);
+
+    // Initialize totals
+    let totalAssignedTargets = 0;
+    let totalCompletedTargets = 0;
+    let totalPendingTargets = 0;
+
+    // Loop through each jobId
+    for (const jobId of jobIds) {
+      // Find the salesperson by jobId
+      console.log("jobId", jobId);
+      const salesperson = await User.findOne({ jobId, role: "salesperson" });
+      if (!salesperson) {
+        console.warn(`Salesperson with jobId ${jobId} not found.`);
+        continue; // Skip if salesperson not found
+      }
+
+      // Fetch the monthly target for each salesperson within the specified month
+      const monthlyTarget = await Target.findOne({
+        userId: salesperson._id,
+        date: { $gte: startOfMonth, $lte: endOfMonth },
+        createdby: "admin",
+      });
+
+      // If no target data for the month, skip to the next salesperson
+      if (!monthlyTarget) continue;
+
+      // Accumulate totals
+      totalAssignedTargets += monthlyTarget.assignedMonthlyTarget;
+      totalCompletedTargets += monthlyTarget.dailyCompletedTarget;
+    }
+
+    // Calculate total pending targets
+    totalPendingTargets = totalAssignedTargets - totalCompletedTargets;
+
+    // Respond with the accumulated totals
+    res.status(200).json({
+      message: `Total targets for all salespersons for ${month}/${year}`,
+      totalAssignedTargets,
+      totalCompletedTargets,
+      totalPendingTargets,
+    });
+  } catch (error) {
+    console.error("Error fetching total monthly targets:", error);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+});
+
 export {
   assignMonthlyTargetToSalesperson,
   getMonthlyTargetStats,
@@ -580,4 +653,5 @@ export {
   adminFetchReport,
   retrieveStocksData,
   getAllMonthlyTargetStats,
+  getTotalMonthlyTargetsOverall,
 };

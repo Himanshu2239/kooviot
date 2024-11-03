@@ -7,10 +7,10 @@ import {
   updateStocksForProduction,
 } from "../controller/production.js";
 
-// Multer setup for storing files in public/temp
+// Multer setup for storing files in /tmp
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, "public/temp"); // Destination for the uploaded files
+    cb(null, "/tmp"); // Destination for the uploaded files
   },
   filename: function (req, file, cb) {
     cb(null, `${Date.now()}-${file.originalname}`); // File naming convention
