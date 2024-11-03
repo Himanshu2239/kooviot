@@ -22,13 +22,16 @@ const s3 = new AWS.S3({
   region: process.env.AWS_REGION,
 });
 
-// Use /tmp directory for temporary file storage
-const tempDirectory = '/tmp';
+// Ensure public/temp directory exists
+const tempDirectory = path.join(__dirname, "../../public/temp");
+if (!fs.existsSync(tempDirectory)) {
+  fs.mkdirSync(tempDirectory, { recursive: true });
+}
 
-// Multer setup to store files in /tmp
+// Multer setup to store files in public/temp
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, tempDirectory); // Save to /tmp directory
+    cb(null, tempDirectory); // Save to /public/temp using the correct relative path
   },
   filename: function (req, file, cb) {
     cb(null, `${Date.now()}-${file.originalname}`);
@@ -74,10 +77,12 @@ const generateS3Key = (
 
 // Function to handle file upload for production
 const uploadFileForProduction = asynchandler(async (req, res) => {
+  console.log("ravi");
   const { fileType, reportMonth, reportYear } = req.body;
   const { file } = req;
   const userId = req.user._id;
-  
+  console.log("userId:", userId);
+  console.log("fileType:", fileType);
   if (!file) {
     return res.status(400).json({ message: "File is required" });
   }
@@ -91,6 +96,8 @@ const uploadFileForProduction = asynchandler(async (req, res) => {
     reportYear
   );
   const localFilePath = path.join(tempDirectory, file.filename);
+
+  console.log("S3 key:", s3Key);
 
   try {
     // Upload file to S3
@@ -108,11 +115,7 @@ const uploadFileForProduction = asynchandler(async (req, res) => {
     await newFile.save();
 
     // Remove the file from temp folder
-    fs.unlink(localFilePath, (err) => {
-      if (err) {
-        console.error("Error deleting temp file:", err);
-      }
-    });
+    fs.unlinkSync(localFilePath);
 
     res
       .status(201)
@@ -138,6 +141,7 @@ const productionUpdateReport = async (req, res) => {
   try {
     const { year, month, day, mtdType, value } = req.body;
     const userId = req.user._id;
+    console.log(year, month, day, mtdType, value);
 
     // Find or create the report for the production user
     let report = await MTDReport.findOne({ productionUser: userId });
