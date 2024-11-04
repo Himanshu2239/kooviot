@@ -42,43 +42,31 @@ const s3 = new AWS.S3({
 
 //jobId of salesperson(jobId),target of current month (target)
 const assignMonthlyTargetToSalesperson = asynchandler(async (req, res) => {
-  const { jobId, target } = req.body;
+  let { month, year, jobId, target } = req.body;
 
   // Validate input data
-  if (!jobId || typeof target !== "number") {
+  if (!jobId || typeof target !== "number" || !month || !year) {
     return res
       .status(400)
-      .json({ message: "JobId and valid target are required." });
+      .json({ message: "JobId, month, year, and valid target are required." });
   }
-
+  year = year.toString().padStart(4, "0"); // Ensure year is a 4-digit string
+  month = month.toString().padStart(2, "0"); // Ensure month is two digits
   try {
     // Find the salesperson by jobId and ensure the role is "salesperson"
-    const salesperson = await User.findOne({ jobId, role: "salesperson" });
+    const salesperson =await User.findOne({ jobId, role: "salesperson" });
 
     // If the salesperson is not found
     if (!salesperson) {
       return res.status(404).json({ message: "Salesperson not found." });
     }
 
-    // Get the current month and year
-    const currentDate = new Date();
-    const currentMonth = currentDate.getMonth(); // Month is 0-indexed (Jan = 0)
-    const currentYear = currentDate.getFullYear();
+    // Set the start and end of the provided month and year to search for an existing target
+    const startOfMonth = new Date(year, month - 1, 1, 0, 0, 0, 0); // First day of the specified month
+    const endOfMonth = new Date(year, month, 0, 23, 59, 59, 999); // Last day of the specified month
 
-    // Set the start and end of the current month to search for an existing target
-    const startOfMonth = new Date(currentYear, currentMonth, 1, 0, 0, 0, 0); // First day of the month
-    const endOfMonth = new Date(
-      currentYear,
-      currentMonth + 1,
-      0,
-      23,
-      59,
-      59,
-      999
-    ); // Last day of the month
-
-    // Check if there is already a target assigned for the current month, created by the admin
-    let targetRecord = await Target.findOne({
+    // Check if there is already a target assigned for the specified month, created by the admin
+    let targetRecord =await Target.findOne({
       userId: salesperson._id,
       date: { $gte: startOfMonth, $lte: endOfMonth },
       createdby: "admin", // Ensure the target was created by the admin
@@ -89,10 +77,10 @@ const assignMonthlyTargetToSalesperson = asynchandler(async (req, res) => {
       targetRecord.assignedMonthlyTarget = target;
       targetRecord.createdby = "admin"; // Update the creator to admin (if needed)
     } else {
-      // Create a new target for the salesperson for the current month
+      // Create a new target for the salesperson for the specified month
       targetRecord = new Target({
         userId: salesperson._id,
-        date: currentDate, // Assign the current date
+        date: startOfMonth, // Assign the start of the specified month
         assignedMonthlyTarget: target,
         dailyCompletedTarget: 0, // Initialize daily completion
         totalMonthlyTaskCompleted: 0, // Initialize total task completion
@@ -105,7 +93,7 @@ const assignMonthlyTargetToSalesperson = asynchandler(async (req, res) => {
 
     // Respond with success
     return res.status(200).json({
-      message: `Target of ${target} lakhs assigned to ${salesperson.fullName} (Job ID: ${jobId}).`,
+      message: `Target of ${target}  assigned to ${salesperson.fullName} (Job ID: ${jobId}) for ${month}/${year}.`,
       target: targetRecord,
     });
   } catch (error) {
