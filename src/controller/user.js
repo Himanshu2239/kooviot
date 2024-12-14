@@ -202,70 +202,183 @@ const refresh_token = asynchandler(async (req, res) => {
 
 
 //jobId of salesperson(jobId) , description of target(tasks)
-const assignDailyTasksToSelf = asynchandler(async (req, res) => {
-  const { tasks } = req.body;
-  const jobId = req.user.jobId;
+// const assignDailyTasksToSelf = asynchandler(async (req, res) => {
+//   const { tasks } = req.body;
+//   const jobId = req.user.jobId;
 
-  // Validate input
-  if (!jobId || !tasks || !Array.isArray(tasks) || tasks.length === 0) {
+//   // Validate input
+//   if (!jobId || !tasks || !Array.isArray(tasks) || tasks.length === 0) {
+//     return res.status(400).json({
+//       message: "JobId and an array of tasks with descriptions are required.",
+//     });
+//   }
+
+//   try {
+//     // Check global permission for task assignment
+//     const globalPermission = await GlobalPermission.findOne({});
+//     console.log("Global Permission:", globalPermission.canAssignTasks); // Log globalPermission for debugging
+//     if (!globalPermission || !globalPermission.canAssignTasks) {
+//       return res.status(403).json({
+//         message: "Task assignment is not allowed for salespersons.",
+//       });
+//     }
+
+//     // Find the salesperson by jobId
+//     const salesperson = await User.findOne({ jobId, role: "salesperson" });
+//     if (!salesperson) {
+//       return res.status(404).json({ message: "Salesperson not found." });
+//     }
+
+//     // Get today's date (start of the day)
+//     const today = new Date();
+//     today.setHours(0, 0, 0, 0);
+
+//     // Separate tasks into regular and extra tasks, ensuring descriptions exist
+//     const newTasks = tasks.map((task, index) => {
+//       if (!task.description || task.description.trim() === "") {
+//         throw new Error(
+//           `Task description is required for task at index ${index}`
+//         );
+//       }
+
+//       return {
+//         description: task.description.trim(),
+//         isCompleted: task.isExtraTask ? true : false, // If extra task, mark as completed
+//         isExtraTask: task.isExtraTask || false, // Identify if it's an extra task
+//         date: today, // Assign today's date to each task
+//         userId: salesperson._id, // Link the task to the salesperson
+//       };
+//     });
+
+//     // Insert the tasks directly into the Task collection
+//     await Task.insertMany(newTasks);
+
+//     // Respond with the tasks added
+//     res.status(200).json({
+//       message: "Tasks successfully assigned for today.",
+//       tasks: newTasks,
+//     });
+//   } catch (error) {
+//     console.error(error);
+
+//     if (error.message.startsWith("Task description is required")) {
+//       // Handle missing description errors
+//       return res.status(400).json({ message: error.message });
+//     }
+
+//     res.status(500).json({ message: "Server error. Please try again later." });
+//   }
+// });
+const assignDailyTasksToSelf = asynchandler(async (req, res) => {
+  // Utility function to normalize date to UTC
+  const normalizeDateToUTC = (year, month, date) => {
+    return new Date(Date.UTC(year, month - 1, date, 0, 0, 0)); // Normalize date to UTC
+  };
+
+  // Parse the `tasks` field from `req.body`
+  let tasks = [];
+  try {
+    if (req.body.tasks) {
+      tasks = JSON.parse(req.body.tasks); // Manually parse the tasks field if provided
+    }
+  } catch (error) {
     return res.status(400).json({
-      message: "JobId and an array of tasks with descriptions are required.",
+      message: "Invalid tasks format. It must be a valid JSON array.",
+    });
+  }
+
+  const jobId = req.user?.jobId;
+
+  if (!jobId) {
+    return res.status(400).json({
+      message: "JobId is required.",
     });
   }
 
   try {
-    // Check global permission for task assignment
     const globalPermission = await GlobalPermission.findOne({});
-    console.log("Global Permission:", globalPermission.canAssignTasks); // Log globalPermission for debugging
     if (!globalPermission || !globalPermission.canAssignTasks) {
       return res.status(403).json({
         message: "Task assignment is not allowed for salespersons.",
       });
     }
 
-    // Find the salesperson by jobId
     const salesperson = await User.findOne({ jobId, role: "salesperson" });
     if (!salesperson) {
       return res.status(404).json({ message: "Salesperson not found." });
     }
 
-    // Get today's date (start of the day)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Get today's date in UTC
+    const today = new Date(); // Current local date
+    const { year, month, date } = {
+      year: today.getFullYear(),
+      month: today.getMonth() + 1,
+      date: today.getDate(),
+    };
+    const normalizedToday = normalizeDateToUTC(year, month, date); // Normalize to UTC
 
-    // Separate tasks into regular and extra tasks, ensuring descriptions exist
-    const newTasks = tasks.map((task, index) => {
-      if (!task.description || task.description.trim() === "") {
-        throw new Error(
-          `Task description is required for task at index ${index}`
-        );
+    let fileUrl = null;
+
+    // Handle document upload (replace old document if exists)
+    if (req.file) {
+      // Check if an existing task has a document for today
+      const existingTaskWithDocument = await Task.findOne({
+        userId: salesperson._id,
+        date: normalizedToday,
+        fileUrl: { $ne: null }, // Task with an existing file
+      });
+
+      if (existingTaskWithDocument) {
+        // Delete the old file from S3
+        const oldFileName = existingTaskWithDocument.fileUrl.split("/").pop();
+        const deleteParams = {
+          Bucket: process.env.S3_BUCKET_NAME,
+          Key: oldFileName,
+        };
+        await s3.deleteObject(deleteParams).promise();
       }
 
-      return {
-        description: task.description.trim(),
-        isCompleted: task.isExtraTask ? true : false, // If extra task, mark as completed
-        isExtraTask: task.isExtraTask || false, // Identify if it's an extra task
-        date: today, // Assign today's date to each task
-        userId: salesperson._id, // Link the task to the salesperson
-      };
-    });
+      // Upload the new file to S3
+      const fileName = `${salesperson._id}/${Date.now()}_${req.file.originalname}`;
+      const uploadResponse = await uploadToS3(req.file, fileName);
+      fileUrl = uploadResponse.Location; // S3 file URL
 
-    // Insert the tasks directly into the Task collection
-    await Task.insertMany(newTasks);
+      // Update the latest document for today's tasks
+      await Task.updateMany(
+        { userId: salesperson._id, date: normalizedToday },
+        { fileUrl } // Update all tasks for today with the latest document
+      );
+    }
 
-    // Respond with the tasks added
+    // Add new tasks to the database if tasks are provided
+    const newTasks = [];
+    if (tasks.length > 0) {
+      for (const task of tasks) {
+        if (!task.description || task.description.trim() === "") {
+          throw new Error("Task description is required.");
+        }
+
+        newTasks.push({
+          description: task.description.trim(),
+          isCompleted: task.isExtraTask ? true : false,
+          isExtraTask: task.isExtraTask || false,
+          date: normalizedToday, // Store normalized UTC date
+          userId: salesperson._id,
+          fileUrl, // Attach the latest document URL (if exists)
+        });
+      }
+
+      // Insert new tasks
+      await Task.insertMany(newTasks);
+    }
+
     res.status(200).json({
-      message: "Tasks successfully assigned for today.",
+      message: "Tasks and/or document successfully assigned for today.",
       tasks: newTasks,
+      fileUrl,
     });
   } catch (error) {
     console.error(error);
-
-    if (error.message.startsWith("Task description is required")) {
-      // Handle missing description errors
-      return res.status(400).json({ message: error.message });
-    }
-
     res.status(500).json({ message: "Server error. Please try again later." });
   }
 });
@@ -539,7 +652,10 @@ const canAddTasks = asynchandler(async (req, res) => {
     // Fetch tasks for the salesperson for today
     const tasks = await Task.find({
       userId: salesperson._id,
-      date: today,
+      date: {
+        $gte: today, // Start of the day
+        $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000), // End of the day
+      },
     });
 
     // Separate tasks into completed, regular, and extra tasks
@@ -551,7 +667,14 @@ const canAddTasks = asynchandler(async (req, res) => {
       (task) => !task.isCompleted && !task.isExtraTask
     );
 
-    // Respond with task assignment permission and today's tasks
+    // Get the latest uploaded document of the day (if available)
+    const latestDocumentTask = tasks
+      .filter((task) => task.fileUrl) // Filter tasks with a document
+      .sort((a, b) => b.updatedAt - a.updatedAt)[0]; // Sort by updatedAt and get the latest
+
+    const latestDocument = latestDocumentTask?.fileUrl || null;
+
+    // Respond with task assignment permission, today's tasks, and the latest document
     res.status(200).json({
       canAssignTasks: globalPermission.canAssignTasks,
       tasks: {
@@ -559,6 +682,7 @@ const canAddTasks = asynchandler(async (req, res) => {
         regularTasks,
         extraAddedTasks,
       },
+      latestDocument,
     });
   } catch (error) {
     console.error(error);

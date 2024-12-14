@@ -30,6 +30,8 @@ const salesPersons = [
   { id: "SP006", name: "Sushila", jobId: "KIOL2225", area: "Kolkata" },
   { id: "SP007", name: "Ardhendu Aditya", jobId: "KIOL2234", area: "Kolkata" },
   { id: "SP008", name: "Yogesh", jobId: "KIOL2049", area: "Pan India" },
+  { id: "SP009", name: "Krishnamoorthi", jobId: "KIOL2243", area: "Singapore" },
+  { id: "SP0010", name: "others", jobId: "others", area: "Pan India" }
   
 ];
 
@@ -316,8 +318,78 @@ const adminViewLastFourMonthsReports = asynchandler(async (req, res) => {
 });
 
 // Controller for adminViewTasks
+// const adminViewTasks = async (req, res) => {
+//   try {
+//     // Extract body parameters
+//     const { date, month, year, jobId } = req.body;
+
+//     // Validate required parameters
+//     if (!date || !month || !year || !jobId) {
+//       return res.status(400).json({ message: "Missing required parameters." });
+//     }
+
+//     // Fetch user based on jobId
+//     const user = await User.findOne({ jobId });
+//     if (!user) {
+//       return res.status(404).json({ message: "User not found." });
+//     }
+
+//     // Create a Date object for the specified day
+//     const selectedDate = new Date(year, month - 1, date);
+
+//     // Find all tasks for the user on the selected date
+//     const tasks = await Task.find({
+//       userId: user._id,
+//       date: {
+//         $gte: new Date(selectedDate.setHours(0, 0, 0, 0)),
+//         $lt: new Date(selectedDate.setHours(23, 59, 59, 999)),
+//       },
+//     });
+
+//     // Categorize tasks into completed, incomplete, and extra
+//     const completedTasks = tasks.filter(
+//       (task) => task.isCompleted && !task.isExtraTask
+//     );
+//     const incompleteTasks = tasks.filter((task) => !task.isCompleted);
+//     const extraTasks = tasks.filter(
+//       (task) => task.isExtraTask && task.isCompleted
+//     );
+
+//     // Return the response with categorized tasks
+//     res.status(200).json({
+//       date: selectedDate.toISOString().split("T")[0],
+//       jobId: user.jobId,
+//       tasks: tasks.map((task) => ({
+//         taskId: task._id,
+//         taskDescription: task.description,
+//         status: task.isCompleted ? "completed" : "pending",
+//       })),
+//       completedTasks: completedTasks.map((task) => ({
+//         taskId: task._id,
+//         taskDescription: task.description,
+//       })),
+//       incompleteTasks: incompleteTasks.map((task) => ({
+//         taskId: task._id,
+//         taskDescription: task.description,
+//       })),
+//       extraTasks: extraTasks.map((task) => ({
+//         taskId: task._id,
+//         taskDescription: task.description,
+//       })),
+//     });
+//   } catch (error) {
+//     console.error("Error fetching tasks:", error);
+//     res.status(500).json({ message: "Server error. Please try again later." });
+//   }
+// };
+//new api after adding document
 const adminViewTasks = async (req, res) => {
   try {
+    // Utility function to normalize date to UTC
+    const normalizeDateToUTC = (year, month, date) => {
+      return new Date(Date.UTC(year, month - 1, date, 0, 0, 0)); // Ensure UTC normalization
+    };
+
     // Extract body parameters
     const { date, month, year, jobId } = req.body;
 
@@ -332,17 +404,34 @@ const adminViewTasks = async (req, res) => {
       return res.status(404).json({ message: "User not found." });
     }
 
-    // Create a Date object for the specified day
-    const selectedDate = new Date(year, month - 1, date);
+    // Normalize the selected date to UTC
+    const selectedDate = normalizeDateToUTC(year, month, date);
 
     // Find all tasks for the user on the selected date
     const tasks = await Task.find({
       userId: user._id,
       date: {
-        $gte: new Date(selectedDate.setHours(0, 0, 0, 0)),
-        $lt: new Date(selectedDate.setHours(23, 59, 59, 999)),
+        $gte: selectedDate,
+        $lt: new Date(selectedDate.getTime() + 24 * 60 * 60 * 1000), // End of the day in UTC
       },
     });
+
+    if (!tasks.length) {
+      return res.status(200).json({
+        date: selectedDate.toISOString().split("T")[0],
+        jobId: user.jobId,
+        message: "No tasks found for the given day.",
+        tasks: [],
+        latestDocument: null,
+      });
+    }
+
+    // Get the latest document uploaded on the day
+    const latestTaskWithDocument = tasks
+      .filter((task) => task.fileUrl) // Filter tasks with a fileUrl
+      .sort((a, b) => b.updatedAt - a.updatedAt)[0]; // Sort by `updatedAt` and get the latest
+
+    const latestDocument = latestTaskWithDocument?.fileUrl || null;
 
     // Categorize tasks into completed, incomplete, and extra
     const completedTasks = tasks.filter(
@@ -353,26 +442,31 @@ const adminViewTasks = async (req, res) => {
       (task) => task.isExtraTask && task.isCompleted
     );
 
-    // Return the response with categorized tasks
+    // Return the response with categorized tasks and latest document
     res.status(200).json({
       date: selectedDate.toISOString().split("T")[0],
       jobId: user.jobId,
+      latestDocument,
       tasks: tasks.map((task) => ({
         taskId: task._id,
         taskDescription: task.description,
+        fileUrl: task.fileUrl || null, // Include the file URL if available
         status: task.isCompleted ? "completed" : "pending",
       })),
       completedTasks: completedTasks.map((task) => ({
         taskId: task._id,
         taskDescription: task.description,
+        fileUrl: task.fileUrl || null,
       })),
       incompleteTasks: incompleteTasks.map((task) => ({
         taskId: task._id,
         taskDescription: task.description,
+        fileUrl: task.fileUrl || null,
       })),
       extraTasks: extraTasks.map((task) => ({
         taskId: task._id,
         taskDescription: task.description,
+        fileUrl: task.fileUrl || null,
       })),
     });
   } catch (error) {

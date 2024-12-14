@@ -11,22 +11,26 @@ const taskSchema = new Schema(
     description: {
       type: String,
       required: true,
-      trim: true, // A string representing the task description
+      trim: true,
     },
     date: {
       type: Date,
       required: true,
-      default: Date.now, // The date the task is assigned/completed
+      default: Date.now,
     },
     isCompleted: {
       type: Boolean,
-      default: false, // Task is marked as completed or not
+      default: false,
       required: true,
     },
     isExtraTask: {
       type: Boolean,
-      default: false, // Differentiates between regular and extra completed tasks
+      default: false,
       required: true,
+    },
+    fileUrl: {
+      type: String,
+      required: false, // Optional field for storing file URL
     },
   },
   { timestamps: true }

@@ -13,14 +13,24 @@ import {
 } from "../controller/user.js";
 // import { upload } from "../middlewares/multer.js";
 import { verifyjwt, authSalesperson } from "../middleware/auth.js";
+import multer from "multer";
 
 
 const router = Router();
 
+const upload = multer({
+  storage: multer.memoryStorage(), // Store file in memory for further processing
+  limits: { fileSize: 10 * 1024 * 1024 }, // Limit file size to 5MB
+});
+
 router.route("/register").post(registerUser);
-router
-  .route("/assignDailyTask")
-  .post(verifyjwt, authSalesperson, assignDailyTasksToSelf);
+
+router.route("/assignDailyTask").post(
+  verifyjwt,
+  authSalesperson,
+  upload.single("file"), // Middleware to handle single file upload
+  assignDailyTasksToSelf
+);
 router
   .route("/dailyTaskHistory")
   .post(verifyjwt, authSalesperson, retrieveDailyTaskCompleted);
