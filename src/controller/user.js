@@ -6,6 +6,7 @@ import { Target } from "../models/target.js";
 import { Task } from "../models/task.js";
 import { GlobalPermission } from "../models/permission.js";
 import { ApiResponse } from "../utils/apiresponse.js";
+import { uploadToS3 } from "../utils/uploadToS3.js";
 import jwt from "jsonwebtoken";
 //
 
