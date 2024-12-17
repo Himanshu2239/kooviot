@@ -252,56 +252,118 @@ const productionUpdateReport = async (req, res) => {
 };
 
 // Function to handle stock update for production
+// const updateStocksForProduction = asynchandler(async (req, res) => {
+//   const { year, month, day, packedStocks, unpackedStocks } = req.body;
+//   const userId = req.user._id;
+
+//   console.log(packedStocks, unpackedStocks);
+
+//   // Check that all required fields are provided and valid
+//   if (!year || !month || !day || packedStocks===undefined || unpackedStocks===undefined) {
+//     return res.status(400).json({
+//       message:
+//         "Year, month, day, packedStocks, and unpackedStocks are required",
+//     });
+//   }
+
+//   // Normalize year, month, and day
+//   const normalizedYear = year.toString().padStart(4, "0");
+//   const normalizedMonth = month.toString().padStart(2, "0");
+//   const normalizedDay = day.toString().padStart(2, "0");
+
+//   // Validate that year, month, and day are in the correct format
+//   if (!/^\d{4}$/.test(normalizedYear)) {
+//     return res
+//       .status(400)
+//       .json({ message: "Invalid year format. Must be a 4-digit year." });
+//   }
+
+//   if (!/^(0[1-9]|1[0-2])$/.test(normalizedMonth)) {
+//     return res
+//       .status(400)
+//       .json({ message: "Invalid month format. Must be 01-12." });
+//   }
+
+//   if (!/^(0[1-9]|[12][0-9]|3[01])$/.test(normalizedDay)) {
+//     return res
+//       .status(400)
+//       .json({ message: "Invalid day format. Must be 01-31." });
+//   }
+
+//   // Construct the date from normalized values
+//   const date = new Date(
+//     `${normalizedYear}-${normalizedMonth}-${normalizedDay}`
+//   );
+//   console.log("date",date)
+//   date.setHours(0, 0, 0, 0); // Set time to start of the day
+
+//   try {
+//     // Find existing record for the specified date and user
+//     let totalStocks = await TotalStocks.findOne({ user: userId, date });
+
+//     if (totalStocks) {
+//       // Subtract previous values before updating
+//       totalStocks.packedStocks = packedStocks;
+//       totalStocks.unpackedStocks = unpackedStocks;
+//     } else {
+//       // Create a new entry if none exists for the specified date
+//       totalStocks = new TotalStocks({
+//         user: userId,
+//         date,
+//         packedStocks,
+//         unpackedStocks,
+//       });
+//     }
+
+//     await totalStocks.save();
+//     res
+//       .status(200)
+//       .json({ message: "Stocks updated successfully", totalStocks });
+//   } catch (error) {
+//     res.status(500).json({ message: "Server error", error });
+//   }
+// });
 const updateStocksForProduction = asynchandler(async (req, res) => {
   const { year, month, day, packedStocks, unpackedStocks } = req.body;
   const userId = req.user._id;
 
-  console.log(packedStocks, unpackedStocks);
+  console.log('Packed Stocks:', packedStocks, 'Unpacked Stocks:', unpackedStocks);
 
   // Check that all required fields are provided and valid
-  if (!year || !month || !day || packedStocks===undefined || unpackedStocks===undefined) {
+  if (!year || !month || !day || packedStocks === undefined || unpackedStocks === undefined) {
     return res.status(400).json({
-      message:
-        "Year, month, day, packedStocks, and unpackedStocks are required",
+      message: "Year, month, day, packedStocks, and unpackedStocks are required",
     });
   }
 
   // Normalize year, month, and day
-  const normalizedYear = year.toString().padStart(4, "0");
-  const normalizedMonth = month.toString().padStart(2, "0");
-  const normalizedDay = day.toString().padStart(2, "0");
+  const normalizedYear = year.toString().padStart(4, '0');
+  const normalizedMonth = month.toString().padStart(2, '0');
+  const normalizedDay = day.toString().padStart(2, '0');
 
   // Validate that year, month, and day are in the correct format
   if (!/^\d{4}$/.test(normalizedYear)) {
-    return res
-      .status(400)
-      .json({ message: "Invalid year format. Must be a 4-digit year." });
+    return res.status(400).json({ message: "Invalid year format. Must be a 4-digit year." });
   }
 
   if (!/^(0[1-9]|1[0-2])$/.test(normalizedMonth)) {
-    return res
-      .status(400)
-      .json({ message: "Invalid month format. Must be 01-12." });
+    return res.status(400).json({ message: "Invalid month format. Must be 01-12." });
   }
 
   if (!/^(0[1-9]|[12][0-9]|3[01])$/.test(normalizedDay)) {
-    return res
-      .status(400)
-      .json({ message: "Invalid day format. Must be 01-31." });
+    return res.status(400).json({ message: "Invalid day format. Must be 01-31." });
   }
 
-  // Construct the date from normalized values
-  const date = new Date(
-    `${normalizedYear}-${normalizedMonth}-${normalizedDay}`
-  );
-  date.setHours(0, 0, 0, 0); // Set time to start of the day
+  // Correctly construct the UTC date without time shift
+  const date = new Date(Date.UTC(Number(normalizedYear), Number(normalizedMonth) - 1, Number(normalizedDay), 0, 0, 0));
+  console.log('Date to be saved:', date.toISOString()); // Log the date for debugging
 
   try {
     // Find existing record for the specified date and user
     let totalStocks = await TotalStocks.findOne({ user: userId, date });
 
     if (totalStocks) {
-      // Subtract previous values before updating
+      // Update existing record
       totalStocks.packedStocks = packedStocks;
       totalStocks.unpackedStocks = unpackedStocks;
     } else {
@@ -315,13 +377,12 @@ const updateStocksForProduction = asynchandler(async (req, res) => {
     }
 
     await totalStocks.save();
-    res
-      .status(200)
-      .json({ message: "Stocks updated successfully", totalStocks });
+    res.status(200).json({ message: "Stocks updated successfully", totalStocks });
   } catch (error) {
     res.status(500).json({ message: "Server error", error });
   }
 });
+
 export {
   uploadFileForProduction,
   upload,
