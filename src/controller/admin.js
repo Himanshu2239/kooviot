@@ -31,8 +31,7 @@ const salesPersons = [
   { id: "SP007", name: "Ardhendu Aditya", jobId: "KIOL2234", area: "Kolkata" },
   { id: "SP008", name: "Yogesh", jobId: "KIOL2049", area: "Pan India" },
   { id: "SP009", name: "Krishnamoorthi", jobId: "KIOL2243", area: "Singapore" },
-  { id: "SP0010", name: "others", jobId: "others", area: "Pan India" }
-  
+  { id: "SP0010", name: "others", jobId: "others", area: "Pan India" },
 ];
 
 // Initialize AWS S3
@@ -56,7 +55,7 @@ const assignMonthlyTargetToSalesperson = asynchandler(async (req, res) => {
   month = month.toString().padStart(2, "0"); // Ensure month is two digits
   try {
     // Find the salesperson by jobId and ensure the role is "salesperson"
-    const salesperson =await User.findOne({ jobId, role: "salesperson" });
+    const salesperson = await User.findOne({ jobId, role: "salesperson" });
 
     // If the salesperson is not found
     if (!salesperson) {
@@ -68,7 +67,7 @@ const assignMonthlyTargetToSalesperson = asynchandler(async (req, res) => {
     const endOfMonth = new Date(year, month, 0, 23, 59, 59, 999); // Last day of the specified month
 
     // Check if there is already a target assigned for the specified month, created by the admin
-    let targetRecord =await Target.findOne({
+    let targetRecord = await Target.findOne({
       userId: salesperson._id,
       date: { $gte: startOfMonth, $lte: endOfMonth },
       createdby: "admin", // Ensure the target was created by the admin
@@ -476,63 +475,280 @@ const adminViewTasks = async (req, res) => {
 };
 
 // Controller for adminFetchReport
+// const adminFetchReport = async (req, res) => {
+//   try {
+//     let { year, month, day } = req.body;
+//     const userId = req.productionUserId;
+
+//     // Validate required parameters
+//     if (!userId || !year || !month || !day) {
+//       return res.status(400).json({ message: "Missing required parameters." });
+//     }
+//     // Normalize year, month, and day
+//     year = year.toString(); // Ensure year is a string
+//     day = day.toString().padStart(2, "0"); // Ensure day is two digits
+//     // Find the report for the production user
+
+//     const report = await MTDReport.findOne({ productionUser: userId }).populate(
+//       "productionUser"
+//     );
+//     if (!report) {
+//       return res.status(404).json({ message: "Report not found." });
+//     }
+
+//     // Extract the required data
+//     const yearData = report.yearReport?.[year];
+//     if (!yearData) {
+//       return res.status(404).json({ message: "Year data not found." });
+//     }
+
+//     const monthData = yearData.months?.[month];
+//     if (!monthData) {
+//       return res.status(404).json({ message: "Month data not found." });
+//     }
+
+//     const dayData = monthData.days?.[day] || { todayReport: {} };
+
+//     // Ensure all mtdTypes have a value in dayReport, defaulting to 0 if not found
+//     const allMtdTypes = ["totaldispatch", "production", "packing", "sales"];
+//     const dayReport = {};
+//     allMtdTypes.forEach((type) => {
+//       dayReport[type] = dayData.todayReport[type] || 0;
+//     });
+
+//     // Calculate month-to-date report till the given day
+//     const monthReportTillDate = {};
+//     allMtdTypes.forEach((type) => {
+//       monthReportTillDate[type] = 0;
+//       for (let d in monthData.days) {
+//         if (parseInt(d) <= parseInt(day)) {
+//           monthReportTillDate[type] += monthData.days[d].todayReport[type] || 0;
+//         }
+//       }
+//     });
+
+//     // Return the response with the day and month-to-date report
+//     res.status(200).json({
+//       dayReport: dayReport,
+//       monthReportTillDate: monthReportTillDate, // Cumulative MTD value till the given day
+//       monthReport: monthData.monthReport, // Total cumulative value for the whole month
+//     });
+//   } catch (error) {
+//     console.error("Error fetching report:", error);
+//     res.status(500).json({ message: "Server error. Please try again later." });
+//   }
+// };
+
+/**
+ * Converts month numbers to their corresponding month names.
+ * @param {number|string} month - The month number (1-12) or month name.
+ * @returns {string|null} - The month name or null if invalid.
+ */
+const getMonthName = (month) => {
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  if (typeof month === "number") {
+    if (month >= 1 && month <= 12) {
+      return monthNames[month - 1];
+    }
+    return null;
+  }
+
+  if (typeof month === "string") {
+    const index = monthNames.findIndex(
+      (m) => m.toLowerCase() === month.toLowerCase()
+    );
+    return index !== -1 ? monthNames[index] : null;
+  }
+
+  return null;
+};
+
+/**
+ * Helper function to extract dayReport and monthReportTillDate
+ * @param {Object} yearData - The data for the specified year.
+ * @param {Object} monthData - The data for the specified month.
+ * @param {string} targetDay - The day to extract data for.
+ * @returns {Object} - Contains dayReport, monthReportTillDate, and monthReport.
+ */
+const extractReports = (yearData, monthData, targetDay, allMtdTypes) => {
+  const dayData = monthData.days?.[targetDay] || { todayReport: {} };
+
+  // Extract the day report, ensuring all types are present
+  const dayReport = {};
+  allMtdTypes.forEach((type) => {
+    dayReport[type] = dayData.todayReport[type] || 0;
+  });
+
+  // Calculate month-to-date cumulative report till the target day
+  const monthReportTillDate = {};
+  allMtdTypes.forEach((type) => {
+    monthReportTillDate[type] = 0;
+    for (let d in monthData.days) {
+      if (parseInt(d, 10) <= parseInt(targetDay, 10)) {
+        monthReportTillDate[type] += monthData.days[d].todayReport[type] || 0;
+      }
+    }
+  });
+
+  // Extract cumulative month report
+  const monthReport = {};
+  allMtdTypes.forEach((type) => {
+    monthReport[type] = monthData.monthReport?.[type] || 0;
+  });
+
+  return { dayReport, monthReportTillDate, monthReport };
+};
+
+/**
+ * Fetches the MTD report for a production user based on the provided date
+ * or retrieves the latest available report.
+ * @param {Object} req - The request object containing productionUserId and optionally year, month, day.
+ * @param {Object} res - The response object used to send back the desired data.
+ */
 const adminFetchReport = async (req, res) => {
   try {
-    let { year, month, day } = req.body;
+    const { year, month, day } = req.body;
     const userId = req.productionUserId;
 
-    // Validate required parameters
-    if (!userId || !year || !month || !day) {
-      return res.status(400).json({ message: "Missing required parameters." });
+    // **Validation: Only userId is mandatory**
+    if (!userId) {
+      return res.status(400).json({ message: "Missing required user ID." });
     }
-    // Normalize year, month, and day
-    year = year.toString(); // Ensure year is a string
-    day = day.toString().padStart(2, "0"); // Ensure day is two digits
-    // Find the report for the production user
 
-    const report = await MTDReport.findOne({ productionUser: userId }).populate(
-      "productionUser"
-    );
+    // **Find the report for the production user**
+    const report = await MTDReport.findOne({ productionUser: userId }).populate("productionUser");
     if (!report) {
-      return res.status(404).json({ message: "Report not found." });
+      return res.status(404).json({ message: "Report not found for this user." });
     }
 
-    // Extract the required data
-    const yearData = report.yearReport?.[year];
-    if (!yearData) {
-      return res.status(404).json({ message: "Year data not found." });
-    }
-
-    const monthData = yearData.months?.[month];
-    if (!monthData) {
-      return res.status(404).json({ message: "Month data not found." });
-    }
-
-    const dayData = monthData.days?.[day] || { todayReport: {} };
-
-    // Ensure all mtdTypes have a value in dayReport, defaulting to 0 if not found
+    // **Define required MTD types**
     const allMtdTypes = ["totaldispatch", "production", "packing", "sales"];
-    const dayReport = {};
-    allMtdTypes.forEach((type) => {
-      dayReport[type] = dayData.todayReport[type] || 0;
-    });
 
-    // Calculate month-to-date report till the given day
-    const monthReportTillDate = {};
-    allMtdTypes.forEach((type) => {
-      monthReportTillDate[type] = 0;
-      for (let d in monthData.days) {
-        if (parseInt(d) <= parseInt(day)) {
-          monthReportTillDate[type] += monthData.days[d].todayReport[type] || 0;
-        }
+    /**
+     * **Case 1**: Specific Date Provided
+     */
+    if (year && month && day) {
+      // **Convert and Validate Month**
+      const formattedMonth = getMonthName(month);
+      if (!formattedMonth) {
+        return res.status(400).json({ message: "Invalid month value." });
       }
-    });
 
-    // Return the response with the day and month-to-date report
-    res.status(200).json({
-      dayReport: dayReport,
-      monthReportTillDate: monthReportTillDate, // Cumulative MTD value till the given day
-      monthReport: monthData.monthReport, // Total cumulative value for the whole month
+      // **Normalize Year and Day**
+      const formattedYear = year.toString();
+      const formattedDay = day.toString().padStart(2, "0");
+
+      // **Access Year Data**
+      const yearData = report.yearReport?.[formattedYear];
+      if (!yearData) {
+        return res.status(404).json({ message: "Year data not found." });
+      }
+
+      // **Access Month Data**
+      const monthData = yearData.months?.[formattedMonth];
+      if (!monthData) {
+        return res.status(404).json({ message: "Month data not found." });
+      }
+
+      // **Extract Reports for the Specific Day**
+      const { dayReport, monthReportTillDate, monthReport } = extractReports(yearData, monthData, formattedDay, allMtdTypes);
+
+      // **Construct Report Date**
+      const reportDate = `${formattedYear}-${formattedMonth}-${formattedDay}`;
+
+      // **Respond with the Specific Date's Report**
+      return res.status(200).json({
+        message: "Report data retrieved successfully for the specified date.",
+        dayReport,
+        monthReportTillDate,
+        monthReport,
+        date: reportDate,
+      });
+    }
+
+    /**
+     * **Case 2**: No Specific Date Provided (Fetch Latest Report)
+     */
+    // **Initialize Variables for Iteration**
+    let latestReportFound = false;
+    const currentDate = new Date();
+    let dateToCheck = new Date(currentDate);
+
+    // **Iterate Backward Up to 30 Days to Find the Latest Available Report**
+    for (let i = 0; i < 30; i++) {
+      const checkYear = dateToCheck.getFullYear().toString();
+      const checkMonthNumber = dateToCheck.getMonth() + 1; // getMonth() is zero-based
+      const checkMonthName = getMonthName(checkMonthNumber);
+      const checkDay = dateToCheck.getDate().toString().padStart(2, "0");
+
+      if (!checkMonthName) {
+        // Invalid month, skip to previous day
+        dateToCheck.setDate(dateToCheck.getDate() - 1);
+        continue;
+      }
+
+      // **Access Year and Month Data**
+      const yearData = report.yearReport?.[checkYear];
+      if (!yearData) {
+        // Year data not found, skip to previous day
+        dateToCheck.setDate(dateToCheck.getDate() - 1);
+        continue;
+      }
+
+      const monthData = yearData.months?.[checkMonthName];
+      if (!monthData) {
+        // Month data not found, skip to previous day
+        dateToCheck.setDate(dateToCheck.getDate() - 1);
+        continue;
+      }
+
+      // **Access Day Data**
+      const dayData = monthData.days?.[checkDay];
+      if (!dayData || !dayData.todayReport) {
+        // Day data not found or todayReport is empty, skip to previous day
+        dateToCheck.setDate(dateToCheck.getDate() - 1);
+        continue;
+      }
+
+      // **Check if All Required MTD Types are Present and Not Null**
+      const hasAllTypes = allMtdTypes.every(
+        (type) => dayData.todayReport[type] !== undefined && dayData.todayReport[type] !== null
+      );
+
+      if (hasAllTypes) {
+        // **Extract Reports for the Found Day**
+        const { dayReport, monthReportTillDate, monthReport } = extractReports(yearData, monthData, checkDay, allMtdTypes);
+
+        // **Construct Report Date**
+        const reportDate = `${checkYear}-${checkMonthName}-${checkDay}`;
+
+        // **Respond with the Latest Available Report**
+        return res.status(200).json({
+          message: "Latest available report data retrieved successfully.",
+          dayReport,
+          monthReportTillDate,
+          monthReport,
+          date: reportDate,
+        });
+      }
+
+      // **Move to the Previous Day**
+      dateToCheck.setDate(dateToCheck.getDate() - 1);
+    }
+
+    /**
+     * **If No Report Found in the Last 30 Days**
+     */
+    return res.status(404).json({
+      message: "No report data found in the last 30 days.",
+      dayReport: { totaldispatch: 0, production: 0, packing: 0, sales: 0 },
+      monthReportTillDate: { totaldispatch: 0, production: 0, packing: 0, sales: 0 },
+      monthReport: { totaldispatch: 0, production: 0, packing: 0, sales: 0 },
+      date: null,
     });
   } catch (error) {
     console.error("Error fetching report:", error);
@@ -541,54 +757,156 @@ const adminFetchReport = async (req, res) => {
 };
 
 // Controller function to retrieve TotalStocks data
+// const retrieveStocksData = asynchandler(async (req, res) => {
+//   const { date, month, year } = req.body;
+//   const productionUserId = req.productionUserId;
 
+//   console.log("productionId", productionUserId);
+
+//   // Ensure all three inputs (date, month, year) are provided
+//   if (!date || !month || !year) {
+//     return res.status(400).json({
+//       message: "Please provide all fields: date, month, and year.",
+//     });
+//   }
+
+//   // Set up the query object based on the provided date, month, and year
+//   const query = {
+//     user: productionUserId,
+//     date: {
+//       $gte: new Date(year, month - 1, date, 0, 0, 0, 0),
+//       $lt: new Date(year, month - 1, date, 23, 59, 59, 999),
+//     },
+//   };
+
+//   try {
+//     const stocksData = await TotalStocks.findOne(query);
+
+//     if (!stocksData) {
+//       return res
+//         .status(404)
+//         .json({ message: "No data found for the given date." });
+//     }
+
+//     // Calculate total stocks (packed + unpacked)
+//     const totalStocks = stocksData.packedStocks + stocksData.unpackedStocks;
+
+//     // Return the packedStocks, unpackedStocks, and calculated totalStocks
+//     res.status(200).json({
+//       message: "Stocks data retrieved successfully",
+//       data: {
+//         packedStocks: stocksData.packedStocks,
+//         unpackedStocks: stocksData.unpackedStocks,
+//         totalStocks: totalStocks,
+//       },
+//     });
+//   } catch (error) {
+//     res.status(500).json({ message: "Server error", error });
+//   }
+// });
+
+//Controller function to retrieve TotalStocks data  final tested
 const retrieveStocksData = asynchandler(async (req, res) => {
   const { date, month, year } = req.body;
   const productionUserId = req.productionUserId;
 
   console.log("productionId", productionUserId);
 
-  // Ensure all three inputs (date, month, year) are provided
-  if (!date || !month || !year) {
-    return res.status(400).json({
-      message: "Please provide all fields: date, month, and year.",
-    });
-  }
-
-  // Set up the query object based on the provided date, month, and year
-  const query = {
-    user: productionUserId,
-    date: {
-      $gte: new Date(year, month - 1, date, 0, 0, 0, 0),
-      $lt: new Date(year, month - 1, date, 23, 59, 59, 999),
-    },
-  };
+  let queryDate;
 
   try {
-    const stocksData = await TotalStocks.findOne(query);
+    let stocksData;
 
-    if (!stocksData) {
-      return res
-        .status(404)
-        .json({ message: "No data found for the given date." });
+    // **Case 1**: If a specific date is provided
+    if (date && month && year) {
+      queryDate = new Date(Date.UTC(year, month - 1, date, 0, 0, 0, 0));
+
+      const query = {
+        user: productionUserId,
+        date: {
+          $gte: new Date(Date.UTC(year, month - 1, date, 0, 0, 0, 0)),
+          $lt: new Date(Date.UTC(year, month - 1, date, 23, 59, 59, 999)),
+        },
+      };
+
+      // Check for data on the specific date
+      stocksData = await TotalStocks.findOne(query);
+
+      if (!stocksData) {
+        // No data found for the specific date
+        return res.status(200).json({
+          message: "No data found for the provided date.",
+          data: {
+            packedStocks: 0,
+            unpackedStocks: 0,
+            totalStocks: 0,
+            date: queryDate.toISOString(),
+          },
+        });
+      }
+    } 
+    // **Case 2**: If no date is provided, iterate backward to find the latest data
+    else {
+      queryDate = new Date(); // Start from today
+
+      // Search for the latest document iterating backward
+      while (!stocksData) {
+        const query = {
+          user: productionUserId,
+          date: {
+            $gte: new Date(Date.UTC(queryDate.getFullYear(), queryDate.getMonth(), queryDate.getDate(), 0, 0, 0, 0)),
+            $lt: new Date(Date.UTC(queryDate.getFullYear(), queryDate.getMonth(), queryDate.getDate(), 23, 59, 59, 999)),
+          },
+        };
+
+        stocksData = await TotalStocks.findOne(query);
+
+        if (!stocksData) {
+          queryDate.setUTCDate(queryDate.getUTCDate() - 1);
+        } else {
+          break;
+        }
+
+        // Avoid infinite loop: Stop iterating after 30 days
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setUTCDate(thirtyDaysAgo.getUTCDate() - 30);
+        if (queryDate < thirtyDaysAgo) {
+          break;
+        }
+      }
+
+      if (!stocksData) {
+        // No data found even after iterating
+        return res.status(200).json({
+          message: "No data found for the latest available days.",
+          data: {
+            packedStocks: 0,
+            unpackedStocks: 0,
+            totalStocks: 0,
+            date: null,
+          },
+        });
+      }
     }
 
-    // Calculate total stocks (packed + unpacked)
+    // Calculate total stocks
     const totalStocks = stocksData.packedStocks + stocksData.unpackedStocks;
 
-    // Return the packedStocks, unpackedStocks, and calculated totalStocks
     res.status(200).json({
       message: "Stocks data retrieved successfully",
       data: {
         packedStocks: stocksData.packedStocks,
         unpackedStocks: stocksData.unpackedStocks,
         totalStocks: totalStocks,
+        date: queryDate.toISOString(), // Return the exact date for which data was found
       },
     });
   } catch (error) {
+    console.error("Error fetching stocks data:", error);
     res.status(500).json({ message: "Server error", error });
   }
 });
+
 
 // API to get monthly target stats for all salespersons
 const getAllMonthlyTargetStats = asynchandler(async (req, res) => {
