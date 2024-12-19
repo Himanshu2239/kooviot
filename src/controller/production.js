@@ -323,6 +323,7 @@ const productionUpdateReport = async (req, res) => {
 //     res.status(500).json({ message: "Server error", error });
 //   }
 // });
+//fix date issue
 const updateStocksForProduction = asynchandler(async (req, res) => {
   const { year, month, day, packedStocks, unpackedStocks } = req.body;
   const userId = req.user._id;

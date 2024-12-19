@@ -200,8 +200,6 @@ const refresh_token = asynchandler(async (req, res) => {
   }
 });
 
-
-
 //jobId of salesperson(jobId) , description of target(tasks)
 // const assignDailyTasksToSelf = asynchandler(async (req, res) => {
 //   const { tasks } = req.body;
@@ -449,6 +447,101 @@ const retrieveDailyTaskCompleted = asynchandler(async (req, res) => {
 });
 
 //jobId of salesperson(jobId),date,month,year,completedTarget;
+// const updateDailyTargetCompletion = asynchandler(async (req, res) => {
+//   const { completedTarget, day, month, year } = req.body;
+
+//   // Validate input
+//   if (completedTarget === undefined || !day || !month || !year) {
+//     return res.status(400).json({
+//       message: "Completed target, day, month, and year are required.",
+//     });
+//   }
+
+//   try {
+//     // Get jobId of the salesperson from req.user
+//     const { jobId } = req.user; // Ensure jobId is available in req.user
+
+//     // Find the salesperson by jobId
+//     const salesperson = await User.findOne({ jobId, role: "salesperson" });
+//     if (!salesperson) {
+//       return res.status(404).json({ message: "Salesperson not found." });
+//     }
+
+//     // Create the specific date for the target update
+//     const targetDate = new Date(year, month - 1, day); // Format: (year, month index, day)
+//     console.log("targetDate", targetDate);
+//     targetDate.setHours(0, 0, 0, 0); // Set to start of the day for consistency
+
+//     // Set the start and end of the month for querying the monthly target
+//     const startOfMonth = new Date(year, month - 1, 1); // First day of the month
+//     const endOfMonth = new Date(year, month, 0); // Last day of the month
+
+//     console.log("date,startDate,endDate", targetDate, startOfMonth, endOfMonth);
+
+//     // Check if a monthly target has been assigned by the admin for the current month
+//     let monthlyTarget = await Target.findOne({
+//       userId: salesperson._id,
+//       date: { $gte: startOfMonth, $lte: endOfMonth },
+//       createdby: "admin", // Ensure that the monthly target was created by the admin
+//     });
+
+//     // If no monthly target exists, respond with an error
+//     if (!monthlyTarget) {
+//       return res.status(404).json({
+//         message: "No monthly target assigned by the admin for this month.",
+//       });
+//     }
+
+//     // Fetch or create the target for the specific day
+//     let dailyTarget = await Target.findOne({
+//       userId: salesperson._id,
+//       date: targetDate,
+//     });
+
+//     // If no target exists for the given day, create a new target document for the day
+//     if (!dailyTarget) {
+//       dailyTarget = new Target({
+//         userId: salesperson._id,
+//         date: targetDate,
+//         assignedMonthlyTarget: monthlyTarget.assignedMonthlyTarget, // Set assigned monthly target for context
+//         dailyCompletedTarget: completedTarget, // Set the daily completed target
+//         totalMonthlyTaskCompleted: completedTarget, // Initialize total monthly task completed
+//         createdby: "salesperson", // This target was created by the salesperson
+//       });
+//     } else {
+//       // Update existing daily target
+//       dailyTarget.dailyCompletedTarget += completedTarget; // Increment daily completed target
+//       dailyTarget.totalMonthlyTaskCompleted += completedTarget; // Increment total monthly target
+//     }
+
+//     // Update the cumulative total for the monthly target as well
+//     monthlyTarget.totalMonthlyTaskCompleted += completedTarget; // Increment cumulative monthly total
+//     monthlyTarget.dailyCompletedTarget += completedTarget; // Increment daily completed target
+
+//     // Save both the updated monthly target and daily target
+//     await dailyTarget.save();
+//     await monthlyTarget.save();
+
+//     // Respond with the updated daily target and monthly target
+//     res.status(200).json({
+//       message: `Daily target updated successfully for ${day}/${month}/${year}.`,
+//       dailyTarget: {
+//         assignedMonthlyTarget: dailyTarget.assignedMonthlyTarget,
+//         dailyCompletedTarget: dailyTarget.dailyCompletedTarget,
+//         totalMonthlyTaskCompleted: dailyTarget.totalMonthlyTaskCompleted,
+//       },
+//       monthlyTarget: {
+//         assignedMonthlyTarget: monthlyTarget.assignedMonthlyTarget,
+//         dailyCompletedTarget: monthlyTarget.dailyCompletedTarget,
+//         totalMonthlyTaskCompleted: monthlyTarget.totalMonthlyTaskCompleted,
+//       },
+//     });
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ message: "Server error. Please try again later." });
+//   }
+// });
+
 const updateDailyTargetCompletion = asynchandler(async (req, res) => {
   const { completedTarget, day, month, year } = req.body;
 
@@ -469,13 +562,19 @@ const updateDailyTargetCompletion = asynchandler(async (req, res) => {
       return res.status(404).json({ message: "Salesperson not found." });
     }
 
-    // Create the specific date for the target update
-    const targetDate = new Date(year, month - 1, day); // Format: (year, month index, day)
-    targetDate.setHours(0, 0, 0, 0); // Set to start of the day for consistency
+    // Create the specific date for the target update in UTC
+    const targetDate = new Date(Date.UTC(year, month - 1, day));
 
-    // Set the start and end of the month for querying the monthly target
-    const startOfMonth = new Date(year, month - 1, 1); // First day of the month
-    const endOfMonth = new Date(year, month, 0); // Last day of the month
+    // Set the start and end of the month in UTC
+    const startOfMonth = new Date(Date.UTC(year, month - 1, 1));
+    const endOfMonth = new Date(Date.UTC(year, month, 0));
+
+    console.log(
+      "targetDate,startofMonth,endOfMonth",
+      targetDate,
+      startOfMonth,
+      endOfMonth
+    );
 
     // Check if a monthly target has been assigned by the admin for the current month
     let monthlyTarget = await Target.findOne({
@@ -488,6 +587,11 @@ const updateDailyTargetCompletion = asynchandler(async (req, res) => {
     if (!monthlyTarget) {
       return res.status(404).json({
         message: "No monthly target assigned by the admin for this month.",
+        requestedDates: {
+          targetDate: targetDate.toISOString(),
+          startOfMonth: startOfMonth.toISOString(),
+          endOfMonth: endOfMonth.toISOString(),
+        },
       });
     }
 
@@ -497,39 +601,46 @@ const updateDailyTargetCompletion = asynchandler(async (req, res) => {
       date: targetDate,
     });
 
-    // If no target exists for the given day, create a new target document for the day
     if (!dailyTarget) {
+      // No target for the given day, create a new document
       dailyTarget = new Target({
         userId: salesperson._id,
         date: targetDate,
-        assignedMonthlyTarget: monthlyTarget.assignedMonthlyTarget, // Set assigned monthly target for context
-        dailyCompletedTarget: completedTarget, // Set the daily completed target
-        totalMonthlyTaskCompleted: completedTarget, // Initialize total monthly task completed
-        createdby: "salesperson", // This target was created by the salesperson
+        assignedMonthlyTarget: monthlyTarget.assignedMonthlyTarget,
+        dailyCompletedTarget: completedTarget,
+        totalMonthlyTaskCompleted: completedTarget,
+        createdby: "salesperson",
       });
     } else {
       // Update existing daily target
-      dailyTarget.dailyCompletedTarget += completedTarget; // Increment daily completed target
-      dailyTarget.totalMonthlyTaskCompleted += completedTarget; // Increment total monthly target
+      dailyTarget.dailyCompletedTarget += completedTarget;
+      dailyTarget.totalMonthlyTaskCompleted += completedTarget;
     }
 
-    // Update the cumulative total for the monthly target as well
-    monthlyTarget.totalMonthlyTaskCompleted += completedTarget; // Increment cumulative monthly total
-    monthlyTarget.dailyCompletedTarget += completedTarget; // Increment daily completed target
+    // Update the cumulative totals in monthly target
+    monthlyTarget.totalMonthlyTaskCompleted += completedTarget;
+    monthlyTarget.dailyCompletedTarget += completedTarget;
 
-    // Save both the updated monthly target and daily target
+    // Save the targets
     await dailyTarget.save();
     await monthlyTarget.save();
 
-    // Respond with the updated daily target and monthly target
+    // Respond with updated information including dates
     res.status(200).json({
       message: `Daily target updated successfully for ${day}/${month}/${year}.`,
+      requestedDates: {
+        targetDate: targetDate.toISOString(),
+        startOfMonth: startOfMonth.toISOString(),
+        endOfMonth: endOfMonth.toISOString(),
+      },
       dailyTarget: {
+        date: dailyTarget.date.toISOString(),
         assignedMonthlyTarget: dailyTarget.assignedMonthlyTarget,
         dailyCompletedTarget: dailyTarget.dailyCompletedTarget,
         totalMonthlyTaskCompleted: dailyTarget.totalMonthlyTaskCompleted,
       },
       monthlyTarget: {
+        date: monthlyTarget.date.toISOString(),
         assignedMonthlyTarget: monthlyTarget.assignedMonthlyTarget,
         dailyCompletedTarget: monthlyTarget.dailyCompletedTarget,
         totalMonthlyTaskCompleted: monthlyTarget.totalMonthlyTaskCompleted,
