@@ -24,7 +24,7 @@ const fileUploadSchema = new Schema(
     },
     uploadedAt: {
       type: Date,
-      default: Date.now,
+      default: () => new Date().toISOString(),
     },
     reportMonth: {
       type: Number, // only for productionReport

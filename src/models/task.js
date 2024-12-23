@@ -16,7 +16,7 @@ const taskSchema = new Schema(
     date: {
       type: Date,
       required: true,
-      default: Date.now,
+      default: () => new Date().toISOString(),
     },
     isCompleted: {
       type: Boolean,

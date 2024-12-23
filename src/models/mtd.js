@@ -9,7 +9,7 @@ const dayReportSchema = new mongoose.Schema({
   },
   lastUpdated: {
     type: Date,
-    default: Date.now, // Tracks when the report was last updated
+    default: () => new Date().toISOString(), // Tracks when the report was last updated
   },
 });
 

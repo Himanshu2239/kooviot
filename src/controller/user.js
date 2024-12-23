@@ -316,6 +316,8 @@ const assignDailyTasksToSelf = asynchandler(async (req, res) => {
     };
     const normalizedToday = normalizeDateToUTC(year, month, date); // Normalize to UTC
 
+    console.log("normalizedToday", normalizedToday);
+
     let fileUrl = null;
 
     // Handle document upload (replace old document if exists)
@@ -401,13 +403,15 @@ const retrieveDailyTaskCompleted = asynchandler(async (req, res) => {
     }
 
     // Prepare date range for the month
-    const startDate = new Date(year, month - 1, 1); // Start of the month
-    const endDate = new Date(year, month, 0); // End of the month
+    const startDate = new Date(Date.UTC(year, month - 1, 1)); // Start of the month
+    const endDate = new Date(Date.UTC(year, month, 0)); // End of the month
+
+    console.log("startDate,endDate", startDate, endDate);
 
     // Optionally, filter by a specific day
     let targetDate;
     if (day) {
-      targetDate = new Date(year, month - 1, day); // Specific day
+      targetDate = new Date(Date.UTC(year, month - 1, day)); // Specific day
     }
 
     // Find the target for the salesperson for the specified date (if day is provided) or month
@@ -542,6 +546,7 @@ const retrieveDailyTaskCompleted = asynchandler(async (req, res) => {
 //   }
 // });
 
+//Fixed :javascript Date issue.
 const updateDailyTargetCompletion = asynchandler(async (req, res) => {
   const { completedTarget, day, month, year } = req.body;
 
@@ -551,6 +556,14 @@ const updateDailyTargetCompletion = asynchandler(async (req, res) => {
       message: "Completed target, day, month, and year are required.",
     });
   }
+
+  console.log(
+    "completedTarget,day,month,year",
+    completedTarget,
+    day,
+    month,
+    year
+  );
 
   try {
     // Get jobId of the salesperson from req.user
@@ -582,6 +595,8 @@ const updateDailyTargetCompletion = asynchandler(async (req, res) => {
       date: { $gte: startOfMonth, $lte: endOfMonth },
       createdby: "admin", // Ensure that the monthly target was created by the admin
     });
+
+    console.log("monthlyTarget", monthlyTarget);
 
     // If no monthly target exists, respond with an error
     if (!monthlyTarget) {
@@ -653,6 +668,94 @@ const updateDailyTargetCompletion = asynchandler(async (req, res) => {
 });
 
 //jobId of salesperson(jobId),date,month,year.
+// const getSalespersonMonthlyStatsAndDailyTasks = asynchandler(
+//   async (req, res) => {
+//     const { day, month, year } = req.body;
+//     const jobId = req.user.jobId;
+
+//     // Validate input
+//     if (!jobId || !day || !month || !year) {
+//       return res.status(400).json({
+//         message: "JobId, day, month, and year are required.",
+//       });
+//     }
+
+//     try {
+//       // Find the salesperson by jobId
+//       const salesperson = await User.findOne({ jobId, role: "salesperson" });
+//       if (!salesperson) {
+//         return res.status(404).json({ message: "Salesperson not found." });
+//       }
+
+//       // Set the start and end of the requested month for querying monthly target
+//       const startOfMonth = new Date(year, month - 1, 1); // First day of the month
+//       const endOfMonth = new Date(year, month, 0); // Last day of the month
+
+//       console.log("Month", startOfMonth, endOfMonth);
+
+//       // Fetch the salesperson's monthly target (created by admin) within the specified month
+//       const monthlyTarget = await Target.findOne({
+//         userId: salesperson._id,
+//         date: { $gte: startOfMonth, $lte: endOfMonth },
+//         createdby: "admin",
+//       });
+
+//       // Set the start and end of the specific day for task retrieval (daily target by salesperson)
+//       const startOfDay = new Date(year, month - 1, day);
+//       startOfDay.setHours(0, 0, 0, 0);
+
+//       const endOfDay = new Date(year, month - 1, day);
+//       endOfDay.setHours(23, 59, 59, 999);
+
+//       console.log("EndandStartofDay", startOfDay, endOfDay);
+
+//       // Fetch all tasks for the specified day (daily target created by salesperson)
+//       const tasks = await Task.find({
+//         userId: salesperson._id,
+//         date: { $gte: startOfDay, $lte: endOfDay },
+//       });
+
+//       // Separate regular tasks and extra completed tasks
+//       const regularTasks = tasks.filter((task) => !task.isExtraTask);
+//       const extraCompletedTasks = tasks.filter((task) => task.isExtraTask);
+
+//       // Fetch daily target (created by admin) for the specific day
+//       const dailyTarget = await Target.findOne({
+//         userId: salesperson._id,
+//         date: startOfDay, // Look for the exact date
+//         createdby: "salesperson",
+//       });
+
+//       // Determine the daily completed target
+//       const dailyCompletedTarget = dailyTarget
+//         ? dailyTarget.dailyCompletedTarget
+//         : 0; // Return 0 if no daily target found
+
+//       // If no monthly target is found
+//       if (!monthlyTarget) {
+//         return res.status(404).json({
+//           message: `No target data found for ${month}/${year}.`,
+//         });
+//       }
+
+//       // Respond with both monthly and daily targets along with tasks
+//       res.status(200).json({
+//         message: `Monthly and daily targets for Job ID: ${jobId} on ${day}/${month}/${year}`,
+//         monthlyAssignedTarget: monthlyTarget.assignedMonthlyTarget,
+//         monthlyCompletedTarget: monthlyTarget.dailyCompletedTarget,
+//         dailyCompletedTarget, // Include daily completed target
+//         regularTasks,
+//         extraCompletedTasks,
+//       });
+//     } catch (error) {
+//       console.error(error);
+//       res
+//         .status(500)
+//         .json({ message: "Server error. Please try again later." });
+//     }
+//   }
+// );
+//Fixed : javascript Date issue .
 const getSalespersonMonthlyStatsAndDailyTasks = asynchandler(
   async (req, res) => {
     const { day, month, year } = req.body;
@@ -672,9 +775,23 @@ const getSalespersonMonthlyStatsAndDailyTasks = asynchandler(
         return res.status(404).json({ message: "Salesperson not found." });
       }
 
-      // Set the start and end of the requested month for querying monthly target
-      const startOfMonth = new Date(year, month - 1, 1); // First day of the month
-      const endOfMonth = new Date(year, month, 0); // Last day of the month
+      // Normalize the month and year
+      let normalizedMonth = Number(month) - 1; // Convert 1-indexed month to 0-indexed
+      let normalizedYear = Number(year); // Ensure year is a number
+      if (normalizedMonth > 11) {
+        normalizedYear += Math.floor(normalizedMonth / 12); // Increment year if month > 12
+        normalizedMonth = normalizedMonth % 12; // Normalize month to 0-11 range
+      }
+
+      // Set the start and end of the requested month using UTC
+      const startOfMonth = new Date(
+        Date.UTC(normalizedYear, normalizedMonth, 1, 0, 0, 0, 0)
+      ); // First day of the month in UTC
+      const endOfMonth = new Date(
+        Date.UTC(normalizedYear, normalizedMonth + 1, 0, 23, 59, 59, 999)
+      ); // Last day of the month in UTC
+
+      console.log("Month", startOfMonth, endOfMonth);
 
       // Fetch the salesperson's monthly target (created by admin) within the specified month
       const monthlyTarget = await Target.findOne({
@@ -683,12 +800,26 @@ const getSalespersonMonthlyStatsAndDailyTasks = asynchandler(
         createdby: "admin",
       });
 
-      // Set the start and end of the specific day for task retrieval (daily target by salesperson)
-      const startOfDay = new Date(year, month - 1, day);
-      startOfDay.setHours(0, 0, 0, 0);
+      // Normalize day
+      const normalizedDay = Number(day); // Ensure day is a number
 
-      const endOfDay = new Date(year, month - 1, day);
-      endOfDay.setHours(23, 59, 59, 999);
+      // Set the start and end of the specific day using UTC
+      const startOfDay = new Date(
+        Date.UTC(normalizedYear, normalizedMonth, normalizedDay, 0, 0, 0, 0)
+      ); // Start of the specific day in UTC
+      const endOfDay = new Date(
+        Date.UTC(
+          normalizedYear,
+          normalizedMonth,
+          normalizedDay,
+          23,
+          59,
+          59,
+          999
+        )
+      ); // End of the specific day in UTC
+
+      console.log("EndandStartofDay", startOfDay, endOfDay);
 
       // Fetch all tasks for the specified day (daily target created by salesperson)
       const tasks = await Task.find({
@@ -737,6 +868,72 @@ const getSalespersonMonthlyStatsAndDailyTasks = asynchandler(
   }
 );
 
+// const canAddTasks = asynchandler(async (req, res) => {
+//   try {
+//     const { jobId } = req.user; // Extract jobId from req.user
+
+//     // Fetch global permission settings
+//     const globalPermission = await GlobalPermission.findOne({});
+
+//     // Check if global permission exists
+//     if (!globalPermission) {
+//       return res.status(404).json({
+//         message: "Global permission settings not found.",
+//       });
+//     }
+
+//     // Find the salesperson by jobId
+//     const salesperson = await User.findOne({ jobId, role: "salesperson" });
+//     if (!salesperson) {
+//       return res.status(404).json({ message: "Salesperson not found." });
+//     }
+
+//     // Get today's date (start of the day)
+//     const today = new Date();
+//     today.setHours(0, 0, 0, 0);
+
+//     // Fetch tasks for the salesperson for today
+//     const tasks = await Task.find({
+//       userId: salesperson._id,
+//       date: {
+//         $gte: today, // Start of the day
+//         $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000), // End of the day
+//       },
+//     });
+
+//     // Separate tasks into completed, regular, and extra tasks
+//     const completedTasks = tasks.filter(
+//       (task) => task.isCompleted && !task.isExtraTask
+//     );
+//     const extraAddedTasks = tasks.filter((task) => task.isExtraTask);
+//     const regularTasks = tasks.filter(
+//       (task) => !task.isCompleted && !task.isExtraTask
+//     );
+
+//     // Get the latest uploaded document of the day (if available)
+//     const latestDocumentTask = tasks
+//       .filter((task) => task.fileUrl) // Filter tasks with a document
+//       .sort((a, b) => b.updatedAt - a.updatedAt)[0]; // Sort by updatedAt and get the latest
+
+//     const latestDocument = latestDocumentTask?.fileUrl || null;
+
+//     // Respond with task assignment permission, today's tasks, and the latest document
+//     res.status(200).json({
+//       canAssignTasks: globalPermission.canAssignTasks,
+//       tasks: {
+//         completedTasks,
+//         regularTasks,
+//         extraAddedTasks,
+//       },
+//       latestDocument,
+//     });
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ message: "Server error. Please try again later." });
+//   }
+// });
+
+//fixed js Date issue.
 const canAddTasks = asynchandler(async (req, res) => {
   try {
     const { jobId } = req.user; // Extract jobId from req.user
@@ -757,16 +954,39 @@ const canAddTasks = asynchandler(async (req, res) => {
       return res.status(404).json({ message: "Salesperson not found." });
     }
 
-    // Get today's date (start of the day)
+    // Get today's date using UTC (start and end of the day)
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const startOfDay = new Date(
+      Date.UTC(
+        today.getUTCFullYear(),
+        today.getUTCMonth(),
+        today.getUTCDate(),
+        0,
+        0,
+        0,
+        0
+      )
+    ); // Start of the day in UTC
+    const endOfDay = new Date(
+      Date.UTC(
+        today.getUTCFullYear(),
+        today.getUTCMonth(),
+        today.getUTCDate(),
+        23,
+        59,
+        59,
+        999
+      )
+    ); // End of the day in UTC
+
+    console.log("Start and End of Day", startOfDay, endOfDay);
 
     // Fetch tasks for the salesperson for today
     const tasks = await Task.find({
       userId: salesperson._id,
       date: {
-        $gte: today, // Start of the day
-        $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000), // End of the day
+        $gte: startOfDay, // Start of the day
+        $lt: endOfDay, // End of the day
       },
     });
 

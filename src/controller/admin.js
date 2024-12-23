@@ -42,17 +42,101 @@ const s3 = new AWS.S3({
 });
 
 //jobId of salesperson(jobId),target of current month (target)
+// const assignMonthlyTargetToSalesperson = asynchandler(async (req, res) => {
+//   let { month, year, jobId, target } = req.body;
+
+//   console.log("month,year,jobId,target", month, year, jobId, target);
+
+//    // Convert target to a number (if it's a string that looks like a number)
+//    const numericTarget = Number(target);
+
+//    // Validate input data
+//    if (!jobId || isNaN(numericTarget) || !month || !year) {
+//      return res
+//        .status(400)
+//        .json({ message: "JobId, month, year, and valid target are required." });
+//    }
+
+//   year = year.toString().padStart(4, "0"); // Ensure year is a 4-digit string
+//   month = month.toString().padStart(2, "0"); // Ensure month is two digits
+//   try {
+//     // Find the salesperson by jobId and ensure the role is "salesperson"
+//     const salesperson = await User.findOne({ jobId, role: "salesperson" });
+
+//     // If the salesperson is not found
+//     if (!salesperson) {
+//       return res.status(404).json({ message: "Salesperson not found." });
+//     }
+
+//     // Set the start and end of the provided month and year to search for an existing target
+//     const startOfMonth = new Date(year, month - 1, 1, 0, 0, 0, 0); // First day of the specified month
+//     const endOfMonth = new Date(year, month, 0, 23, 59, 59, 999); // Last day of the specified month
+
+//     console.log("startOfMonth,endOfMonth", startOfMonth, endOfMonth);
+
+//     // Check if there is already a target assigned for the specified month, created by the admin
+//     let targetRecord = await Target.findOne({
+//       userId: salesperson._id,
+//       date: { $gte: startOfMonth, $lte: endOfMonth },
+//       createdby: "admin", // Ensure the target was created by the admin
+//     });
+
+//     if (targetRecord) {
+//       // Update the existing target if found
+//       targetRecord.assignedMonthlyTarget = target;
+//       targetRecord.createdby = "admin"; // Update the creator to admin (if needed)
+//     } else {
+//       // Create a new target for the salesperson for the specified month
+//       targetRecord = new Target({
+//         userId: salesperson._id,
+//         date: startOfMonth, // Assign the start of the specified month
+//         assignedMonthlyTarget: target,
+//         dailyCompletedTarget: 0, // Initialize daily completion
+//         totalMonthlyTaskCompleted: 0, // Initialize total task completion
+//         createdby: "admin", // Set createdBy to admin
+//       });
+//     }
+
+//     // Save the target record to the database
+//     await targetRecord.save();
+
+//     // Respond with success
+//     return res.status(200).json({
+//       message: `Target of ${target}  assigned to ${salesperson.fullName} (Job ID: ${jobId}) for ${month}/${year}.`,
+//       target: targetRecord,
+//     });
+//   } catch (error) {
+//     console.error(error);
+//     return res
+//       .status(500)
+//       .json({ message: "Server error. Please try again later." });
+//   }
+// });
+
+//fix date issue here into this code.
 const assignMonthlyTargetToSalesperson = asynchandler(async (req, res) => {
   let { month, year, jobId, target } = req.body;
 
+  console.log("month,year,jobId,target", month, year, jobId, target);
+
+  // Convert target to a number (if it's a string that looks like a number)
+  const numericTarget = Number(target);
+
   // Validate input data
-  if (!jobId || typeof target !== "number" || !month || !year) {
+  if (!jobId || isNaN(numericTarget) || !month || !year) {
     return res
       .status(400)
       .json({ message: "JobId, month, year, and valid target are required." });
   }
-  year = year.toString().padStart(4, "0"); // Ensure year is a 4-digit string
-  month = month.toString().padStart(2, "0"); // Ensure month is two digits
+
+  // Normalize the month and year
+  let normalizedMonth = month - 1; // Convert 1-indexed month to 0-indexed
+  let normalizedYear = year;
+  if (normalizedMonth > 11) {
+    normalizedYear += Math.floor(normalizedMonth / 12); // Increment year if month > 12
+    normalizedMonth = normalizedMonth % 12; // Normalize month to 0-11 range
+  }
+
   try {
     // Find the salesperson by jobId and ensure the role is "salesperson"
     const salesperson = await User.findOne({ jobId, role: "salesperson" });
@@ -62,9 +146,21 @@ const assignMonthlyTargetToSalesperson = asynchandler(async (req, res) => {
       return res.status(404).json({ message: "Salesperson not found." });
     }
 
-    // Set the start and end of the provided month and year to search for an existing target
-    const startOfMonth = new Date(year, month - 1, 1, 0, 0, 0, 0); // First day of the specified month
-    const endOfMonth = new Date(year, month, 0, 23, 59, 59, 999); // Last day of the specified month
+    // Set the start and end of the provided month and year using UTC
+    const startOfMonth = new Date(
+      Date.UTC(normalizedYear, normalizedMonth, 1, 0, 0, 0, 0)
+    ); // First day of the month in UTC
+    const endOfMonth = new Date(
+      Date.UTC(normalizedYear, normalizedMonth + 1, 0, 23, 59, 59, 999)
+    ); // Last day of the month in UTC
+
+    console.log(
+      "startOfMonth, endOfMonth",
+      startOfMonth,
+      endOfMonth,
+      normalizedMonth,
+      normalizedYear
+    );
 
     // Check if there is already a target assigned for the specified month, created by the admin
     let targetRecord = await Target.findOne({
@@ -75,14 +171,14 @@ const assignMonthlyTargetToSalesperson = asynchandler(async (req, res) => {
 
     if (targetRecord) {
       // Update the existing target if found
-      targetRecord.assignedMonthlyTarget = target;
+      targetRecord.assignedMonthlyTarget = numericTarget; // Make sure to use numeric target
       targetRecord.createdby = "admin"; // Update the creator to admin (if needed)
     } else {
       // Create a new target for the salesperson for the specified month
       targetRecord = new Target({
         userId: salesperson._id,
         date: startOfMonth, // Assign the start of the specified month
-        assignedMonthlyTarget: target,
+        assignedMonthlyTarget: numericTarget, // Make sure to use numeric target
         dailyCompletedTarget: 0, // Initialize daily completion
         totalMonthlyTaskCompleted: 0, // Initialize total task completion
         createdby: "admin", // Set createdBy to admin
@@ -94,7 +190,7 @@ const assignMonthlyTargetToSalesperson = asynchandler(async (req, res) => {
 
     // Respond with success
     return res.status(200).json({
-      message: `Target of ${target}  assigned to ${salesperson.fullName} (Job ID: ${jobId}) for ${month}/${year}.`,
+      message: `Target of ${numericTarget} assigned to ${salesperson.fullName} (Job ID: ${jobId}) for ${month}/${year}.`,
       target: targetRecord,
     });
   } catch (error) {
@@ -106,20 +202,87 @@ const assignMonthlyTargetToSalesperson = asynchandler(async (req, res) => {
 });
 
 //jobId of salesperson, month, year
+// const getMonthlyTargetStats = asynchandler(async (req, res) => {
+//   let { jobId, month, year } = req.body;
+
+//   console.log("month,year,jobId", month, year, jobId);
+//   // Validate inputs
+//   if (!jobId || !month || !year) {
+//     return res
+//       .status(400)
+//       .json({ message: "JobId, month, and year are required." });
+//   }
+//   // Normalize year and month
+//   year = year.toString().padStart(4, "0"); // Ensure year is a 4-digit string
+//   month = month.toString().padStart(2, "0"); // Ensure month is two digits
+//   // console.log("month,year", month, year);
+
+//   try {
+//     // Find the salesperson by jobId
+//     const salesperson = await User.findOne({ jobId, role: "salesperson" });
+//     if (!salesperson) {
+//       return res.status(404).json({ message: "Salesperson not found." });
+//     }
+
+//     // Get the start and end date of the month
+//     const startDate = new Date(year, month - 1, 1); // First day of the month
+//     const endDate = new Date(year, month, 0); // Last day of the month
+
+//     // Retrieve the monthly target assigned to the salesperson
+//     const monthlyTarget = await Target.findOne({
+//       userId: salesperson._id,
+//       date: { $gte: startDate, $lte: endDate }, // Ensure it's for the specified month
+//     });
+
+//     // If no target found for the specified month
+//     if (!monthlyTarget) {
+//       return res
+//         .status(404)
+//         .json({ message: "No target data found for this month." });
+//     }
+
+//     // Calculate pending target
+//     const totalAssignedTarget = monthlyTarget.assignedMonthlyTarget;
+//     const totalCompletedTarget = monthlyTarget.dailyCompletedTarget;
+//     const totalPendingTarget = totalAssignedTarget - totalCompletedTarget;
+
+//     // Respond with target stats
+//     res.status(200).json({
+//       message: `Target data for Job ID: ${jobId} for month/year: ${month}/${year}`,
+//       totalAssignedTarget,
+//       totalCompletedTarget,
+//       totalPendingTarget,
+//       tasks: monthlyTarget.tasks, // Include task details with completion status
+//     });
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ message: "Server error. Please try again later." });
+//   }
+// });
+
+
+
+
+//fix date issue :
 const getMonthlyTargetStats = asynchandler(async (req, res) => {
   let { jobId, month, year } = req.body;
 
-  console.log("month,year,jobId", month, year, jobId);
+  console.log("month, year, jobId", month, year, jobId);
+
   // Validate inputs
   if (!jobId || !month || !year) {
     return res
       .status(400)
       .json({ message: "JobId, month, and year are required." });
   }
-  // Normalize year and month
-  year = year.toString().padStart(4, "0"); // Ensure year is a 4-digit string
-  month = month.toString().padStart(2, "0"); // Ensure month is two digits
-  // console.log("month,year", month, year);
+
+  // Normalize the month and year
+  let normalizedMonth = Number(month) - 1; // Convert 1-indexed month to 0-indexed
+  let normalizedYear = Number(year); // Ensure year is a number
+  if (normalizedMonth > 11) {
+    normalizedYear += Math.floor(normalizedMonth / 12); // Increment year if month > 12
+    normalizedMonth = normalizedMonth % 12; // Normalize month to 0-11 range
+  }
 
   try {
     // Find the salesperson by jobId
@@ -128,9 +291,15 @@ const getMonthlyTargetStats = asynchandler(async (req, res) => {
       return res.status(404).json({ message: "Salesperson not found." });
     }
 
-    // Get the start and end date of the month
-    const startDate = new Date(year, month - 1, 1); // First day of the month
-    const endDate = new Date(year, month, 0); // Last day of the month
+    // Get the start and end date of the month using UTC
+    const startDate = new Date(
+      Date.UTC(normalizedYear, normalizedMonth, 1, 0, 0, 0, 0)
+    ); // First day of the month in UTC
+    const endDate = new Date(
+      Date.UTC(normalizedYear, normalizedMonth + 1, 0, 23, 59, 59, 999)
+    ); // Last day of the month in UTC
+
+    console.log("startDate, endDate", startDate, endDate);
 
     // Retrieve the monthly target assigned to the salesperson
     const monthlyTarget = await Target.findOne({
@@ -292,6 +461,8 @@ const adminViewLastFourMonthsReports = asynchandler(async (req, res) => {
   const fourMonthsAgo = new Date();
   fourMonthsAgo.setMonth(fourMonthsAgo.getMonth() - 4);
 
+  console.log("currentDate,fourMonthsAgo", currentDate, fourMonthsAgo);
+
   // Fetch the reports for the last 4 months
   const reports = await FileUpload.find({
     fileType: "productionReport",
@@ -392,6 +563,8 @@ const adminViewTasks = async (req, res) => {
     // Extract body parameters
     const { date, month, year, jobId } = req.body;
 
+    console.log(date, month, year, jobId);
+
     // Validate required parameters
     if (!date || !month || !year || !jobId) {
       return res.status(400).json({ message: "Missing required parameters." });
@@ -405,6 +578,8 @@ const adminViewTasks = async (req, res) => {
 
     // Normalize the selected date to UTC
     const selectedDate = normalizeDateToUTC(year, month, date);
+
+    console.log("selectedDate", selectedDate);
 
     // Find all tasks for the user on the selected date
     const tasks = await Task.find({
@@ -546,8 +721,18 @@ const adminViewTasks = async (req, res) => {
  */
 const getMonthName = (month) => {
   const monthNames = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
   ];
 
   if (typeof month === "number") {
@@ -620,9 +805,13 @@ const adminFetchReport = async (req, res) => {
     }
 
     // **Find the report for the production user**
-    const report = await MTDReport.findOne({ productionUser: userId }).populate("productionUser");
+    const report = await MTDReport.findOne({ productionUser: userId }).populate(
+      "productionUser"
+    );
     if (!report) {
-      return res.status(404).json({ message: "Report not found for this user." });
+      return res
+        .status(404)
+        .json({ message: "Report not found for this user." });
     }
 
     // **Define required MTD types**
@@ -655,7 +844,12 @@ const adminFetchReport = async (req, res) => {
       }
 
       // **Extract Reports for the Specific Day**
-      const { dayReport, monthReportTillDate, monthReport } = extractReports(yearData, monthData, formattedDay, allMtdTypes);
+      const { dayReport, monthReportTillDate, monthReport } = extractReports(
+        yearData,
+        monthData,
+        formattedDay,
+        allMtdTypes
+      );
 
       // **Construct Report Date**
       const reportDate = `${formattedYear}-${formattedMonth}-${formattedDay}`;
@@ -716,12 +910,19 @@ const adminFetchReport = async (req, res) => {
 
       // **Check if All Required MTD Types are Present and Not Null**
       const hasAllTypes = allMtdTypes.every(
-        (type) => dayData.todayReport[type] !== undefined && dayData.todayReport[type] !== null
+        (type) =>
+          dayData.todayReport[type] !== undefined &&
+          dayData.todayReport[type] !== null
       );
 
       if (hasAllTypes) {
         // **Extract Reports for the Found Day**
-        const { dayReport, monthReportTillDate, monthReport } = extractReports(yearData, monthData, checkDay, allMtdTypes);
+        const { dayReport, monthReportTillDate, monthReport } = extractReports(
+          yearData,
+          monthData,
+          checkDay,
+          allMtdTypes
+        );
 
         // **Construct Report Date**
         const reportDate = `${checkYear}-${checkMonthName}-${checkDay}`;
@@ -746,7 +947,12 @@ const adminFetchReport = async (req, res) => {
     return res.status(404).json({
       message: "No report data found in the last 30 days.",
       dayReport: { totaldispatch: 0, production: 0, packing: 0, sales: 0 },
-      monthReportTillDate: { totaldispatch: 0, production: 0, packing: 0, sales: 0 },
+      monthReportTillDate: {
+        totaldispatch: 0,
+        production: 0,
+        packing: 0,
+        sales: 0,
+      },
       monthReport: { totaldispatch: 0, production: 0, packing: 0, sales: 0 },
       date: null,
     });
@@ -844,7 +1050,7 @@ const retrieveStocksData = asynchandler(async (req, res) => {
           },
         });
       }
-    } 
+    }
     // **Case 2**: If no date is provided, iterate backward to find the latest data
     else {
       queryDate = new Date(); // Start from today
@@ -854,8 +1060,28 @@ const retrieveStocksData = asynchandler(async (req, res) => {
         const query = {
           user: productionUserId,
           date: {
-            $gte: new Date(Date.UTC(queryDate.getFullYear(), queryDate.getMonth(), queryDate.getDate(), 0, 0, 0, 0)),
-            $lt: new Date(Date.UTC(queryDate.getFullYear(), queryDate.getMonth(), queryDate.getDate(), 23, 59, 59, 999)),
+            $gte: new Date(
+              Date.UTC(
+                queryDate.getFullYear(),
+                queryDate.getMonth(),
+                queryDate.getDate(),
+                0,
+                0,
+                0,
+                0
+              )
+            ),
+            $lt: new Date(
+              Date.UTC(
+                queryDate.getFullYear(),
+                queryDate.getMonth(),
+                queryDate.getDate(),
+                23,
+                59,
+                59,
+                999
+              )
+            ),
           },
         };
 
@@ -907,8 +1133,80 @@ const retrieveStocksData = asynchandler(async (req, res) => {
   }
 });
 
-
 // API to get monthly target stats for all salespersons
+// const getAllMonthlyTargetStats = asynchandler(async (req, res) => {
+//   const { month, year } = req.body;
+
+//   // Validate inputs
+//   if (!month || !year) {
+//     return res.status(400).json({ message: "Month and year are required." });
+//   }
+
+//   try {
+//     // Get the start and end dates of the month
+//     const startDate = new Date(year, month - 1, 1);
+//     const endDate = new Date(year, month, 0);
+
+//     console.log("startDate,endDate", startDate, endDate);
+
+//     // Initialize an array to store each salesperson's target stats
+//     const statsArray = await Promise.all(
+//       salesPersons.map(async (person) => {
+//         const salesperson = await User.findOne({
+//           jobId: person.jobId,
+//           role: "salesperson",
+//         });
+
+//         if (!salesperson) {
+//           return {
+//             name: person.name,
+//             jobId: person.jobId,
+//             message: "Salesperson not found",
+//           };
+//         }
+
+//         // Retrieve the target for the specified month and year
+//         const monthlyTarget = await Target.findOne({
+//           userId: salesperson._id,
+//           date: { $gte: startDate, $lte: endDate },
+//         });
+
+//         if (!monthlyTarget) {
+//           return {
+//             name: person.name,
+//             jobId: person.jobId,
+//             message: "No target data found for this month",
+//           };
+//         }
+
+//         // Calculate targets
+//         const totalAssignedTarget = monthlyTarget.assignedMonthlyTarget;
+//         const totalCompletedTarget = monthlyTarget.dailyCompletedTarget;
+//         const totalPendingTarget = totalAssignedTarget - totalCompletedTarget;
+
+//         return {
+//           name: person.name,
+//           jobId: person.jobId,
+//           totalAssignedTarget,
+//           totalCompletedTarget,
+//           totalPendingTarget,
+//           tasks: monthlyTarget.tasks || [], // Include task details with completion status
+//         };
+//       })
+//     );
+
+//     // Respond with the array of stats
+//     res.status(200).json({
+//       message: `Monthly target stats for all salespersons for ${month}/${year}`,
+//       stats: statsArray,
+//     });
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ message: "Server error. Please try again later." });
+//   }
+// });
+
+//fixing the date issue.
 const getAllMonthlyTargetStats = asynchandler(async (req, res) => {
   const { month, year } = req.body;
 
@@ -917,10 +1215,24 @@ const getAllMonthlyTargetStats = asynchandler(async (req, res) => {
     return res.status(400).json({ message: "Month and year are required." });
   }
 
+  // Normalize the month and year
+  let normalizedMonth = month - 1; // Convert 1-indexed month to 0-indexed
+  let normalizedYear = year;
+  if (normalizedMonth > 11) {
+    normalizedYear += Math.floor(normalizedMonth / 12); // Increment year if month > 12
+    normalizedMonth = normalizedMonth % 12; // Normalize month to 0-11 range
+  }
+
   try {
-    // Get the start and end dates of the month
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0);
+    // Get the start and end dates of the month using UTC
+    const startDate = new Date(
+      Date.UTC(normalizedYear, normalizedMonth, 1, 0, 0, 0, 0)
+    ); // First day of the month in UTC
+    const endDate = new Date(
+      Date.UTC(normalizedYear, normalizedMonth + 1, 0, 23, 59, 59, 999)
+    ); // Last day of the month in UTC
+
+    console.log("startDate, endDate", startDate, endDate);
 
     // Initialize an array to store each salesperson's target stats
     const statsArray = await Promise.all(
@@ -978,8 +1290,70 @@ const getAllMonthlyTargetStats = asynchandler(async (req, res) => {
     res.status(500).json({ message: "Server error. Please try again later." });
   }
 });
-
 //overall totalmonthlyTargets
+// const getTotalMonthlyTargetsOverall = asynchandler(async (req, res) => {
+//   let { month, year } = req.body;
+
+//   // Validate input
+//   if (!month || !year) {
+//     return res.status(400).json({
+//       message: "Month and year are required.",
+//     });
+//   }
+//   year = year.toString().padStart(4, "0"); // Ensure year is a 4-digit string
+//   month = month.toString().padStart(2, "0"); // Ensure month is two digits
+//   try {
+//     // Set the start and end dates of the month for querying targets
+//     const startOfMonth = new Date(year, month - 1, 1);
+//     const endOfMonth = new Date(year, month, 0);
+
+//     // Initialize totals
+//     let totalAssignedTargets = 0;
+//     let totalCompletedTargets = 0;
+//     let totalPendingTargets = 0;
+
+//     // Loop through each jobId
+//     for (const jobId of jobIds) {
+//       // Find the salesperson by jobId
+//       console.log("jobId", jobId);
+//       const salesperson = await User.findOne({ jobId, role: "salesperson" });
+//       if (!salesperson) {
+//         console.warn(`Salesperson with jobId ${jobId} not found.`);
+//         continue; // Skip if salesperson not found
+//       }
+
+//       // Fetch the monthly target for each salesperson within the specified month
+//       const monthlyTarget = await Target.findOne({
+//         userId: salesperson._id,
+//         date: { $gte: startOfMonth, $lte: endOfMonth },
+//         createdby: "admin",
+//       });
+
+//       // If no target data for the month, skip to the next salesperson
+//       if (!monthlyTarget) continue;
+
+//       // Accumulate totals
+//       totalAssignedTargets += monthlyTarget.assignedMonthlyTarget;
+//       totalCompletedTargets += monthlyTarget.dailyCompletedTarget;
+//     }
+
+//     // Calculate total pending targets
+//     totalPendingTargets = totalAssignedTargets - totalCompletedTargets;
+
+//     // Respond with the accumulated totals
+//     res.status(200).json({
+//       message: `Total targets for all salespersons for ${month}/${year}`,
+//       totalAssignedTargets,
+//       totalCompletedTargets,
+//       totalPendingTargets,
+//     });
+//   } catch (error) {
+//     console.error("Error fetching total monthly targets:", error);
+//     res.status(500).json({ message: "Server error. Please try again later." });
+//   }
+// });
+
+//fix date issue :javascript indexing
 const getTotalMonthlyTargetsOverall = asynchandler(async (req, res) => {
   let { month, year } = req.body;
 
@@ -989,12 +1363,25 @@ const getTotalMonthlyTargetsOverall = asynchandler(async (req, res) => {
       message: "Month and year are required.",
     });
   }
-  year = year.toString().padStart(4, "0"); // Ensure year is a 4-digit string
-  month = month.toString().padStart(2, "0"); // Ensure month is two digits
+
+  // Normalize the month and year
+  let normalizedMonth = month - 1; // Convert 1-indexed month to 0-indexed
+  let normalizedYear = year;
+  if (normalizedMonth > 11) {
+    normalizedYear += Math.floor(normalizedMonth / 12); // Increment year if month > 12
+    normalizedMonth = normalizedMonth % 12; // Normalize month to 0-11 range
+  }
+
   try {
-    // Set the start and end dates of the month for querying targets
-    const startOfMonth = new Date(year, month - 1, 1);
-    const endOfMonth = new Date(year, month, 0);
+    // Set the start and end dates of the month using UTC for querying targets
+    const startOfMonth = new Date(
+      Date.UTC(normalizedYear, normalizedMonth, 1, 0, 0, 0, 0)
+    ); // First day of the month in UTC
+    const endOfMonth = new Date(
+      Date.UTC(normalizedYear, normalizedMonth + 1, 0, 23, 59, 59, 999)
+    ); // Last day of the month in UTC
+
+    console.log("startOfMonth, endOfMonth", startOfMonth, endOfMonth);
 
     // Initialize totals
     let totalAssignedTargets = 0;

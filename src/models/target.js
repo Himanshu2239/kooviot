@@ -11,7 +11,7 @@ const targetSchema = new Schema(
     date: {
       type: Date,
       required: true,
-      default: Date.now, // Track when the target was assigned or completed
+      default: () => new Date().toISOString(), // Track when the target was assigned or completed
     },
     assignedMonthlyTarget: {
       type: Number,
