@@ -127,4 +127,39 @@ const refresh_token = asynchandler(async (req, res) => {
   }
 });
 
-export { changeCurrentPassword, logoutUser, refresh_token };
+const adminChangePasswordOfSalesperson = asynchandler(async (req, res) => {
+  const { newPassword, jobId } = req.body;
+
+  // Validate input
+  if (!newPassword || !jobId) {
+    throw new ApiError(400, "Both newPassword and jobId are required");
+  }
+
+  // Find the salesperson by jobId
+  const user = await User.findOne({ jobId });
+
+  if (!user) {
+    throw new ApiError(404, "Salesperson not found");
+  }
+
+  // Ensure the user has the 'salesperson' role
+  if (user.role !== "salesperson") {
+    throw new ApiError(400, "User is not a salesperson");
+  }
+
+  // Update the password
+  user.password = newPassword;
+  await user.save(); // Pre-save hook will hash the password
+
+  // Optionally, you can invalidate existing refresh tokens or take other security measures here
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Password changed successfully"));
+});
+export {
+  changeCurrentPassword,
+  logoutUser,
+  refresh_token,
+  adminChangePasswordOfSalesperson,
+};
