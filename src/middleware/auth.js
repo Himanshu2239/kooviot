@@ -9,21 +9,23 @@ import {
   USER_TYPE_PRODUCTION,
 } from "../constant.js";
 
+
 const verifyjwt = asynchandler(async (req, _, next) => {
   try {
     const token =
       req.cookies?.accessToken ||
       req.header("Authorization")?.replace("Bearer ", "");
-
+    // console.log("tg", token);
     if (!token) {
       throw new ApiError(401, "Unauthorized Request");
     }
+    // console.log(process.env.ACCESS_TOKEN_SECRET);
     const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-
+    //  console.log("dg", decodedToken);
     const user = await User.findById(decodedToken?._id).select(
       "-password -refreshToken"
     );
-    console.log("user from accessToken", user);
+    // console.log("user from accessToken", user);
 
     if (!user) {
       throw new ApiError(401, "Invalid Access Token");
@@ -58,7 +60,7 @@ const authSalesperson = async (req, res, next) => {
   }
 };
 const authProduction = async (req, res, next) => {
-  console.log("req.user", req.user);
+  // console.log("req.user", req.user);
   if (req.user.role === USER_TYPE_PRODUCTION) {
     next();
   } else {

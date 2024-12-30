@@ -117,7 +117,7 @@ const s3 = new AWS.S3({
 const assignMonthlyTargetToSalesperson = asynchandler(async (req, res) => {
   let { month, year, jobId, target } = req.body;
 
-  console.log("month,year,jobId,target", month, year, jobId, target);
+  // console.log("month,year,jobId,target", month, year, jobId, target);
 
   // Convert target to a number (if it's a string that looks like a number)
   const numericTarget = Number(target);
@@ -267,7 +267,7 @@ const assignMonthlyTargetToSalesperson = asynchandler(async (req, res) => {
 const getMonthlyTargetStats = asynchandler(async (req, res) => {
   let { jobId, month, year } = req.body;
 
-  console.log("month, year, jobId", month, year, jobId);
+  // console.log("month, year, jobId", month, year, jobId);
 
   // Validate inputs
   if (!jobId || !month || !year) {
@@ -299,7 +299,7 @@ const getMonthlyTargetStats = asynchandler(async (req, res) => {
       Date.UTC(normalizedYear, normalizedMonth + 1, 0, 23, 59, 59, 999)
     ); // Last day of the month in UTC
 
-    console.log("startDate, endDate", startDate, endDate);
+    // console.log("startDate, endDate", startDate, endDate);
 
     // Retrieve the monthly target assigned to the salesperson
     const monthlyTarget = await Target.findOne({
@@ -396,7 +396,7 @@ const canSalespersonAddTasks = asynchandler(async (req, res) => {
 // Admin view the latest file uploaded for a given fileType (POST request)
 const adminViewFile = asynchandler(async (req, res) => {
   const { fileType } = req.body; // Get fileType from request body
-  console.log("fileType:", fileType);
+  // console.log("fileType:", fileType);
 
   // Find the latest file by fileType
   const latestFile = await FileUpload.findOne({ fileType })
@@ -1232,7 +1232,7 @@ const getAllMonthlyTargetStats = asynchandler(async (req, res) => {
       Date.UTC(normalizedYear, normalizedMonth + 1, 0, 23, 59, 59, 999)
     ); // Last day of the month in UTC
 
-    console.log("startDate, endDate", startDate, endDate);
+    // console.log("startDate, endDate", startDate, endDate);
 
     // Initialize an array to store each salesperson's target stats
     const statsArray = await Promise.all(
@@ -1319,7 +1319,7 @@ const getTotalMonthlyTargetsOverall = asynchandler(async (req, res) => {
       Date.UTC(normalizedYear, normalizedMonth + 1, 0, 23, 59, 59, 999)
     ); // Last day of the month in UTC
 
-    console.log("startOfMonth, endOfMonth", startOfMonth, endOfMonth);
+    // console.log("startOfMonth, endOfMonth", startOfMonth, endOfMonth);
 
     // Initialize totals
     let totalAssignedTargets = 0;
@@ -1329,7 +1329,7 @@ const getTotalMonthlyTargetsOverall = asynchandler(async (req, res) => {
     // Loop through each jobId
     for (const jobId of jobIds) {
       // Find the salesperson by jobId
-      console.log("jobId", jobId);
+      // console.log("jobId", jobId);
       const salesperson = await User.findOne({ jobId, role: "salesperson" });
       if (!salesperson) {
         console.warn(`Salesperson with jobId ${jobId} not found.`);
@@ -1366,6 +1366,8 @@ const getTotalMonthlyTargetsOverall = asynchandler(async (req, res) => {
     res.status(500).json({ message: "Server error. Please try again later." });
   }
 });
+
+
 
 export {
   assignMonthlyTargetToSalesperson,

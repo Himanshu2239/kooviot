@@ -8,7 +8,7 @@ import { app } from "./src/server.js";
 import { jobIds } from "./src/constant.js";
 
 dotenv.config({ path: "./.env" });
-console.log("MongoDb address",process.env.MONGO_DB);
+// console.log("MongoDb address",process.env.MONGO_DB);
 
 connectDB()
   .then(() => {

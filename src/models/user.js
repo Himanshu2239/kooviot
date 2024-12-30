@@ -54,6 +54,8 @@ userSchema.pre("save", async function (next) {
     // Generate salt with a cost factor of 10
     const salt = await bcrypt.genSalt(10);
 
+    // console.log("salt",salt);
+
     // Hash the password with the generated salt
     this.password = await bcrypt.hash(this.password, salt);
 
@@ -73,12 +75,12 @@ userSchema.methods.isPasswordCorrect = async function (password) {
       throw new ApiError(400, "Password and hash are required");
     }
 
-    console.log(
-      "Comparing password:",
-      password,
-      "with stored hash:",
-      this.password
-    );
+    // console.log(
+    //   "Comparing password:",
+    //   password,
+    //   "with stored hash:",
+    //   this.password
+    // );
 
     const isMatch = await bcrypt.compare(password, this.password);
 

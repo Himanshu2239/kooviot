@@ -77,10 +77,11 @@ const loginUser = asynchandler(async (req, res) => {
   // console.log("login User :");
 
   const { jobId, password } = req.body;
-  console.log(jobId, password);
+  // console.log(jobId, password);
   if (!jobId) {
     return new ApiError(400, "jobId required");
   }
+
   const user = await User.findOne({ $or: [{ jobId }] });
 
   if (!user) {
@@ -134,6 +135,8 @@ const logoutUser = asynchandler(async (req, res) => {
       new: true,
     }
   );
+
+  console.log("use", user);
   const options = {
     httpOnly: true,
     secure: true,
@@ -146,6 +149,7 @@ const logoutUser = asynchandler(async (req, res) => {
 });
 
 const refresh_token = asynchandler(async (req, res) => {
+  
   // fetch data (req.body || req.header.cookies)
   // find the user in data (_id)
   // set accessToken in cookies for this.
@@ -557,13 +561,13 @@ const updateDailyTargetCompletion = asynchandler(async (req, res) => {
     });
   }
 
-  console.log(
-    "completedTarget,day,month,year",
-    completedTarget,
-    day,
-    month,
-    year
-  );
+  // console.log(
+  //   "completedTarget,day,month,year",
+  //   completedTarget,
+  //   day,
+  //   month,
+  //   year
+  // );
 
   try {
     // Get jobId of the salesperson from req.user
@@ -791,7 +795,7 @@ const getSalespersonMonthlyStatsAndDailyTasks = asynchandler(
         Date.UTC(normalizedYear, normalizedMonth + 1, 0, 23, 59, 59, 999)
       ); // Last day of the month in UTC
 
-      console.log("Month", startOfMonth, endOfMonth);
+      // console.log("Month", startOfMonth, endOfMonth);
 
       // Fetch the salesperson's monthly target (created by admin) within the specified month
       const monthlyTarget = await Target.findOne({
@@ -819,7 +823,7 @@ const getSalespersonMonthlyStatsAndDailyTasks = asynchandler(
         )
       ); // End of the specific day in UTC
 
-      console.log("EndandStartofDay", startOfDay, endOfDay);
+      // console.log("EndandStartofDay", startOfDay, endOfDay);
 
       // Fetch all tasks for the specified day (daily target created by salesperson)
       const tasks = await Task.find({
@@ -979,7 +983,7 @@ const canAddTasks = asynchandler(async (req, res) => {
       )
     ); // End of the day in UTC
 
-    console.log("Start and End of Day", startOfDay, endOfDay);
+    // console.log("Start and End of Day", startOfDay, endOfDay);
 
     // Fetch tasks for the salesperson for today
     const tasks = await Task.find({

@@ -328,7 +328,7 @@ const updateStocksForProduction = asynchandler(async (req, res) => {
   const { year, month, day, packedStocks, unpackedStocks } = req.body;
   const userId = req.user._id;
 
-  console.log('Packed Stocks:', packedStocks, 'Unpacked Stocks:', unpackedStocks);
+  // console.log('Packed Stocks:', packedStocks, 'Unpacked Stocks:', unpackedStocks);
 
   // Check that all required fields are provided and valid
   if (!year || !month || !day || packedStocks === undefined || unpackedStocks === undefined) {
@@ -357,7 +357,7 @@ const updateStocksForProduction = asynchandler(async (req, res) => {
 
   // Correctly construct the UTC date without time shift
   const date = new Date(Date.UTC(Number(normalizedYear), Number(normalizedMonth) - 1, Number(normalizedDay), 0, 0, 0));
-  console.log('Date to be saved:', date.toISOString()); // Log the date for debugging
+  // console.log('Date to be saved:', date.toISOString()); // Log the date for debugging
 
   try {
     // Find existing record for the specified date and user

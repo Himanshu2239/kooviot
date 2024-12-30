@@ -35,7 +35,7 @@ const changeCurrentPassword = asynchandler(async (req, res) => {
   if (!isPasswordValid) {
     throw new ApiError(400, "Invalid Password");
   }
-  console.log("isPasswordValid", isPasswordValid);
+  // console.log("isPasswordValid", isPasswordValid);
   // Set new password (this will trigger pre-save hook to hash it)
   user.password = newPassword;
   await user.save({ validateBeforeSave: false });
@@ -47,7 +47,7 @@ const changeCurrentPassword = asynchandler(async (req, res) => {
 
 const logoutUser = asynchandler(async (req, res) => {
   // Log req.user for debugging purposes
-  console.log("req.user", req.user);
+  // console.log("req.user", req.user);
 
   // Check if req.user and req.user._id exist
   if (!req.user || !req.user._id) {
@@ -78,7 +78,7 @@ const refresh_token = asynchandler(async (req, res) => {
   // set accessToken in cookies for this.
 
   const incomingToken = req.cookies?.refreshToken || req.body.refreshToken;
-  console.log(incomingToken);
+  // console.log(incomingToken);
   try {
     if (!incomingToken) {
       throw new ApiError(401, "Unauthorized request");
@@ -106,7 +106,7 @@ const refresh_token = asynchandler(async (req, res) => {
     const { refreshToken, accessToken } = await generateAccessandRefreshToken(
       user._id
     );
-    console.log(refreshToken, accessToken);
+    // console.log(refreshToken, accessToken);
     const options = {
       httpOnly: true,
       secure: true,
@@ -127,6 +127,7 @@ const refresh_token = asynchandler(async (req, res) => {
   }
 });
 
+//newPassword ,jobId
 const adminChangePasswordOfSalesperson = asynchandler(async (req, res) => {
   const { newPassword, jobId } = req.body;
 
@@ -157,6 +158,8 @@ const adminChangePasswordOfSalesperson = asynchandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, {}, "Password changed successfully"));
 });
+
+
 export {
   changeCurrentPassword,
   logoutUser,
