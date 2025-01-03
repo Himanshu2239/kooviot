@@ -21,10 +21,10 @@ router
 
 router.route('/getIssue').get(verifyjwt, getAllIssue);
 router.route('/addIssue').post(verifyjwt, addIssue);
-router.route('/updateIssueStatus').put(verifyjwt, updateIssueStatus);
+router.route('/updateIssueStatus').put(verifyjwt, authAdmin, updateIssueStatus);
 router.route('/addOrder').post(verifyjwt, addOrder);
 router.route('/getAllOrder').get(verifyjwt, getAllOrder);
-router.route('/updateOrderStatus').put(verifyjwt, updateOrderStatus);
+router.route('/updateOrderStatus').put(verifyjwt, authAdmin, updateOrderStatus);
 
 
 
