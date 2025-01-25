@@ -8,7 +8,7 @@ import { FileUpload } from "../models/uploadDocument.js";
 import { asynchandler } from "../utils/asynchandler.js";
 import { MTDReport } from "../models/mtd.js";
 import { TotalStocks } from "../models/totalStocks.js";
-
+import { ManPowerCosting } from "../models/manPowerCosting.js"
 // Define __dirname for ES module
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -77,12 +77,13 @@ const uploadFileForProduction = asynchandler(async (req, res) => {
   const { fileType, reportMonth, reportYear } = req.body;
   const { file } = req;
   const userId = req.user._id;
-  
+
   if (!file) {
     return res.status(400).json({ message: "File is required" });
   }
 
   // Generate the S3 key based on fileType and other parameters
+
   const s3Key = generateS3Key(
     fileType,
     userId,
@@ -90,13 +91,16 @@ const uploadFileForProduction = asynchandler(async (req, res) => {
     reportMonth,
     reportYear
   );
+
   const localFilePath = path.join(tempDirectory, file.filename);
 
   try {
     // Upload file to S3
+
     const s3Response = await uploadToS3(localFilePath, s3Key, file.mimetype);
 
     // Save file metadata including S3 URL to MongoDB
+
     const newFile = new FileUpload({
       productionUser: userId,
       fileType,
@@ -108,6 +112,7 @@ const uploadFileForProduction = asynchandler(async (req, res) => {
     await newFile.save();
 
     // Remove the file from temp folder
+
     fs.unlink(localFilePath, (err) => {
       if (err) {
         console.error("Error deleting temp file:", err);
@@ -149,6 +154,7 @@ const productionUpdateReport = async (req, res) => {
     }
 
     // Validate and normalize month
+
     const validMonths = [
       "January",
       "February",
@@ -163,6 +169,7 @@ const productionUpdateReport = async (req, res) => {
       "November",
       "December",
     ];
+
     const normalizedMonth =
       month.charAt(0).toUpperCase() + month.slice(1).toLowerCase();
     if (!validMonths.includes(normalizedMonth)) {
@@ -208,7 +215,9 @@ const productionUpdateReport = async (req, res) => {
         yearReport: {},
       };
     }
+
     const yearData = report.yearReport[normalizedYear];
+
 
     if (!yearData.months[normalizedMonth]) {
       yearData.months[normalizedMonth] = {
@@ -325,15 +334,102 @@ const productionUpdateReport = async (req, res) => {
 // });
 //fix date issue
 const updateStocksForProduction = asynchandler(async (req, res) => {
-  const { year, month, day, packedStocks, unpackedStocks } = req.body;
+  const { year, month, day, agradeStocks, bgradeStocks, unpackedStocks, nonMovingStocks } = req.body;
   const userId = req.user._id;
+
+  // console.log("unmoved", nonMovingStocks)
+
+  // console.log(year, month, day, agradeStocks, bgradeStocks, unpackedStocks, nonMovingStocks );
 
   // console.log('Packed Stocks:', packedStocks, 'Unpacked Stocks:', unpackedStocks);
 
   // Check that all required fields are provided and valid
-  if (!year || !month || !day || packedStocks === undefined || unpackedStocks === undefined) {
+  if (!year || !month || !day || agradeStocks === undefined || bgradeStocks === undefined || nonMovingStocks === undefined || unpackedStocks === undefined) {
     return res.status(400).json({
-      message: "Year, month, day, packedStocks, and unpackedStocks are required",
+      message: "Year, month, day, agradeStock, bgradeStocks, nonMovingStocks and unpackedStocks are required",
+    });
+  }
+
+  // Normalize year, month, and day
+  const normalizedYear = year.toString().padStart(4, '0');
+  const normalizedMonth = month.toString().padStart(2, '0');
+  const normalizedDay = day.toString().padStart(2, '0');
+
+  // Validate that year, month, and day are in the correct format
+
+  if (!/^\d{4}$/.test(normalizedYear)) {
+    return res.status(400).json({ message: "Invalid year format. Must be a 4-digit year." });
+  }
+
+  if (!/^(0[1-9]|1[0-2])$/.test(normalizedMonth)) {
+    return res.status(400).json({ message: "Invalid month format. Must be 01-12." });
+  }
+
+  if (!/^(0[1-9]|[12][0-9]|3[01])$/.test(normalizedDay)) {
+    return res.status(400).json({ message: "Invalid day format. Must be 01-31." });
+  }
+
+  // Correctly construct the UTC date without time shift
+  const date = new Date(Date.UTC(Number(normalizedYear), Number(normalizedMonth) - 1, Number(normalizedDay), 0, 0, 0));
+  // console.log('Date to be saved:', date.toISOString()); // Log the date for debugging
+
+
+  try {
+    // Find existing record for the specified date and user
+    let totalStocks = await TotalStocks.findOne({ user: userId, date });
+    // console.log(totalStocks.nonMovingStocks)
+    // if(totalStocks.nonMovingStocks === undefined){
+    //   totalStocks.nonMovingStocks = 0;
+    //   console.log("total", totalStocks);
+    // }
+
+    if (totalStocks && totalStocks.agradeStocks !== undefined && totalStocks.bgradeStocks !== undefined) {
+      // Update existing record
+
+      // console.log("unmoved1", nonMovingStocks);
+      // totalStocks.packedStocks = packedStocks;
+      totalStocks.agradeStocks = agradeStocks;
+      totalStocks.bgradeStocks = bgradeStocks;
+      totalStocks.nonMovingStocks = nonMovingStocks;
+      totalStocks.packedStocks = agradeStocks + bgradeStocks + nonMovingStocks;
+      totalStocks.unpackedStocks = unpackedStocks;
+    } else {
+      // Create a new entry if none exists for the specified date
+      // console.log("unmoved2", nonMovingStocks)
+      totalStocks = new TotalStocks({
+        user: userId,
+        date,
+        agradeStocks,
+        bgradeStocks,
+        nonMovingStocks,
+        packedStocks: agradeStocks + bgradeStocks + unpackedStocks,
+        unpackedStocks,
+      });
+
+      // console.log("totalStocks", totalStocks);
+    }
+
+    // console.log("totalStocks", totalStocks);
+
+    await totalStocks.save();
+    res.status(200).json({ message: "Stocks updated successfully", totalStocks });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error });
+  }
+});
+
+ // Assuming you have a ManPowerCosting model
+
+const updateManPowerCosting = asynchandler(async (req, res) => {
+  const { year, month, day, payroll, contractorLabour, otherLabour } = req.body;
+  const userId = req.user._id;
+
+  // console.log(year, month, day, payroll, contractorLabour, otherLabour)
+
+  // Check that all required fields are provided and valid
+  if (!year || !month || !day || payroll === undefined || contractorLabour === undefined || otherLabour === undefined) {
+    return res.status(400).json({
+      message: "Year, month, day, payroll, contractorLabour, and otherLabour are required",
     });
   }
 
@@ -357,36 +453,43 @@ const updateStocksForProduction = asynchandler(async (req, res) => {
 
   // Correctly construct the UTC date without time shift
   const date = new Date(Date.UTC(Number(normalizedYear), Number(normalizedMonth) - 1, Number(normalizedDay), 0, 0, 0));
-  // console.log('Date to be saved:', date.toISOString()); // Log the date for debugging
+
+  // console.log("date of production",date);
 
   try {
     // Find existing record for the specified date and user
-    let totalStocks = await TotalStocks.findOne({ user: userId, date });
+    let manPowerCosting = await ManPowerCosting.findOne({ user: userId, date });
 
-    if (totalStocks) {
+    if (manPowerCosting) {
       // Update existing record
-      totalStocks.packedStocks = packedStocks;
-      totalStocks.unpackedStocks = unpackedStocks;
+      manPowerCosting.payroll = payroll;
+      manPowerCosting.contractorLabour = contractorLabour;
+      manPowerCosting.otherLabour = otherLabour;
+      manPowerCosting.totalCost = payroll + contractorLabour + otherLabour;
     } else {
       // Create a new entry if none exists for the specified date
-      totalStocks = new TotalStocks({
+      manPowerCosting = new ManPowerCosting({
         user: userId,
         date,
-        packedStocks,
-        unpackedStocks,
+        payroll,
+        contractorLabour,
+        otherLabour,
+        totalCost: payroll + contractorLabour + otherLabour,
       });
     }
 
-    await totalStocks.save();
-    res.status(200).json({ message: "Stocks updated successfully", totalStocks });
+    await manPowerCosting.save();
+    res.status(200).json({ message: "Man Power Costing updated successfully", manPowerCosting });
   } catch (error) {
     res.status(500).json({ message: "Server error", error });
   }
 });
+
 
 export {
   uploadFileForProduction,
   upload,
   productionUpdateReport,
   updateStocksForProduction,
+  updateManPowerCosting
 };

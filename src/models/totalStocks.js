@@ -12,6 +12,18 @@ const totalStocksSchema = new mongoose.Schema(
       required: true,
       index: true, // Enable searching by date
     },
+    agradeStocks: {
+      type: Number,
+      default: 0,
+    },
+    bgradeStocks: {
+      type :Number,
+      default: 0
+    },
+    nonMovingStocks: {
+      type: Number,
+      default: 0,
+    },
     packedStocks: {
       type: Number,
       default: 0,
@@ -20,6 +32,7 @@ const totalStocksSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+
   },
   { timestamps: true }
 );

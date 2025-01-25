@@ -5,6 +5,7 @@ const addIssue = async (req, res) => {
   const { issue, assignedTo, relatedTo, currentStatus } = req.body;
   try {
     const allIssues = await issueModel.find();
+    const userId = req.user._id;
     let issueNo = (allIssues.length + 1).toString();
     if (issueNo.length === 1)
       issueNo = '000' + issueNo;
@@ -13,7 +14,7 @@ const addIssue = async (req, res) => {
     if (issueNo.length === 3)
       issueNo = '0' + issueNo;
     // console.log(IssuesLength);
-    const newIssue = await issueModel.create({ issueNo, issue, assignedTo, relatedTo, currentStatus });
+    const newIssue = await issueModel.create({ userId, issueNo, issue, assignedTo, relatedTo, currentStatus });
     res.status(201).json({
       success: true,
       message: "Issue successfully added.",

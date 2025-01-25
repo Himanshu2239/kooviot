@@ -5,6 +5,7 @@ import {
   uploadFileForProduction,
   productionUpdateReport,
   updateStocksForProduction,
+  // updateManPowerCosting,
 } from "../controller/production.js";
 
 // Multer setup for storing files in /tmp
@@ -40,5 +41,6 @@ router
 router
   .route("/stocks/update")
   .post(verifyjwt, authProduction, updateStocksForProduction);
+// router.route("/manPowerCosting/update").post(verifyjwt, authProduction, updateManPowerCosting)
 
 export default router;

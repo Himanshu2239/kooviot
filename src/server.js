@@ -2,6 +2,8 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { MAX_LIMIT_OF_DATA, STORE_STATIC_DATA } from "./constant.js";
+import dotenv from "dotenv";
+dotenv.config();
 
 const app = express();
 app.use(cors({ origin: process.env.CORS_ORIGIN, credentials: true }));
@@ -27,3 +29,4 @@ app.use("/production", productionRouter);
 app.use("/common", commonRouter);
 
 export { app };
+

@@ -12,6 +12,7 @@ export const USER_TYPE_PLAYER = "salesperson";
 export const USER_TYPE_PRODUCTION = "production";
 export const USER_TYPE_ADMIN = "admin";
 
+
 export const salesPersons = [
   { id: "SP001", name: "Ravikumar N", jobId: "KIOL2238", area: "Bangalore" },
   { id: "SP002", name: "Sugumar R", jobId: "KIOL2236", area: "Chennai, TN" },
@@ -33,6 +34,7 @@ export const salesPersons = [
   { id: "SP008", name: "Yogesh Lahoti", jobId: "KIOL2049", area: "Pan India" },
   { id: "SP009", name: "Krishnamoorthi", jobId: "KIOL2243", area: "Singapore" },
   { id: "SP010", name: "others", jobId: "others", area: "Pan India" },
+  
   
 ];
 

@@ -11,7 +11,8 @@ import {
   adminFetchReport,
   retrieveStocksData,
   getAllMonthlyTargetStats,
-  getTotalMonthlyTargetsOverall
+  getTotalMonthlyTargetsOverall,
+  // retrieveManpowerCosting
 } from "../controller/admin.js";
 import {
   verifyjwt,
@@ -52,6 +53,7 @@ router
 router
   .route("/stocks/retrieve")
   .post(verifyjwt, authAdmin, productionJobIdtoAdminAuth, retrieveStocksData);
+// router.route("/manPowerCosting").post(verifyjwt, authAdmin, productionJobIdtoAdminAuth, retrieveManpowerCosting)
 router.route("/barchart").post(verifyjwt, authAdmin, getAllMonthlyTargetStats);
 
 router

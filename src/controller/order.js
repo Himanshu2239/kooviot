@@ -17,6 +17,7 @@ const addOrder = async (req, res) => {
                 message: 'Missing required fields: userId, clientName, salesPerson, location, noOfPcs, amount',
             });
         }
+        
         let allOrder = await orderModel.find();
         // console.log(allOrder.length + 1);
         // let orderId = allOrder.length + 1;
@@ -79,6 +80,7 @@ const getAllOrder = async (req, res) => {
 }
 
 const updateOrderStatus = async (req, res) => {
+    // console.log("clicked1")
    try{
     // const orderModel = Order;
     const userId = req.user._id;
@@ -100,4 +102,57 @@ const updateOrderStatus = async (req, res) => {
   }
 }
 
-export {addOrder, getAllOrder, updateOrderStatus};
+// const updateRemark = async (req, res) => {
+//     console.log("API called");
+//    try{
+//      const userId = req.user._id;
+//      if(!userId)
+//       res.status(404).send("User is not found");
+//      const orderId = req.body.orderId;
+//      if(!orderId)
+//       res.status(404).send("Invalid Order Id");
+//     const updatedRemark = req.body.updatedRemark;
+//     const updatedOrder = await orderModel.updateOne(
+//        { _id: orderId},
+//        { $set: { remark: updatedRemark}}
+//     )
+//     res.status(200).send("Update remark successfully", updatedOrder)
+// }
+//    catch(error){
+//      res.status(500).send(error);
+//    }
+// }
+
+const updateRemark = async (req, res) => {
+    // console.log("clicked")
+    try {
+        const userId = req.user._id; // Retrieve the user ID from the request
+        if (!userId) {
+            return res.status(404).send("User is not found"); // Return if user ID is missing
+        }
+
+        const orderId = req.body.orderId; // Retrieve the order ID
+        if (!orderId) {
+            return res.status(404).send("Invalid Order ID"); // Return if order ID is missing
+        }
+
+        const updatedRemark = req.body.updatedRemark; // Retrieve the updated remark
+        const updatedOrder = await orderModel.updateOne(
+            { _id: orderId },
+            { $set: { remark: updatedRemark } }
+        );
+
+        if (updatedOrder.matchedCount === 0) {
+            return res.status(404).send("Order not found");
+        }
+
+        // Send a success response with a message and the updated order details
+        res.status(200).json({ message: "Remark updated successfully", updatedOrder });
+    } catch (error) {
+        console.error("Error updating remark:", error);
+        res.status(500).send("An internal server error occurred");
+    }
+};
+
+
+export {addOrder, getAllOrder, updateOrderStatus, updateRemark};

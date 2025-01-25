@@ -7,7 +7,7 @@ import {
   adminChangePasswordOfSalesperson,
 } from "../controller/common.js";
 import { addIssue, getAllIssue, updateIssueStatus } from "../controller/issue.js";
-import { addOrder, getAllOrder, updateOrderStatus } from "../controller/order.js";
+import { addOrder, getAllOrder, updateOrderStatus, updateRemark } from "../controller/order.js";
 
 const router = Router();
 
@@ -25,6 +25,7 @@ router.route('/updateIssueStatus').put(verifyjwt, authAdmin, updateIssueStatus);
 router.route('/addOrder').post(verifyjwt, addOrder);
 router.route('/getAllOrder').get(verifyjwt, getAllOrder);
 router.route('/updateOrderStatus').put(verifyjwt, authAdmin, updateOrderStatus);
+router.route('/updateRemark').put(verifyjwt, authAdmin, updateRemark);
 
 
 

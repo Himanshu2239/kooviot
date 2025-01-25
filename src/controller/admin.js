@@ -9,6 +9,7 @@ import { GlobalPermission } from "../models/permission.js";
 import AWS from "aws-sdk";
 import path from "path";
 import { jobIds } from "../constant.js";
+import { ManPowerCosting } from "../models/manPowerCosting.js";
 
 // Salespersons data array
 const salesPersons = [
@@ -873,6 +874,7 @@ const adminFetchReport = async (req, res) => {
     let dateToCheck = new Date(currentDate);
 
     // **Iterate Backward Up to 30 Days to Find the Latest Available Report**
+
     for (let i = 0; i < 30; i++) {
       const checkYear = dateToCheck.getFullYear().toString();
       const checkMonthNumber = dateToCheck.getMonth() + 1; // getMonth() is zero-based
@@ -1016,7 +1018,9 @@ const retrieveStocksData = asynchandler(async (req, res) => {
   const { date, month, year } = req.body;
   const productionUserId = req.productionUserId;
 
-  console.log("productionId", productionUserId);
+  // console.log(date, month, year);
+
+  // console.log("productionId", productionUserId);
 
   let queryDate;
 
@@ -1024,6 +1028,7 @@ const retrieveStocksData = asynchandler(async (req, res) => {
     let stocksData;
 
     // **Case 1**: If a specific date is provided
+
     if (date && month && year) {
       queryDate = new Date(Date.UTC(year, month - 1, date, 0, 0, 0, 0));
 
@@ -1043,6 +1048,9 @@ const retrieveStocksData = asynchandler(async (req, res) => {
         return res.status(200).json({
           message: "No data found for the provided date.",
           data: {
+            agradeStocks: 0,
+            bgradeStocks: 0,
+            nonMovingStocks: 0,
             packedStocks: 0,
             unpackedStocks: 0,
             totalStocks: 0,
@@ -1051,6 +1059,7 @@ const retrieveStocksData = asynchandler(async (req, res) => {
         });
       }
     }
+
     // **Case 2**: If no date is provided, iterate backward to find the latest data
     else {
       queryDate = new Date(); // Start from today
@@ -1101,11 +1110,16 @@ const retrieveStocksData = asynchandler(async (req, res) => {
         }
       }
 
+      // console.log('stockData', stocksData)
+
       if (!stocksData) {
         // No data found even after iterating
         return res.status(200).json({
           message: "No data found for the latest available days.",
           data: {
+            agradeStocks: 0,
+            bgradeStocks: 0,
+            nonMovingStocks: 0,
             packedStocks: 0,
             unpackedStocks: 0,
             totalStocks: 0,
@@ -1116,11 +1130,15 @@ const retrieveStocksData = asynchandler(async (req, res) => {
     }
 
     // Calculate total stocks
+
     const totalStocks = stocksData.packedStocks + stocksData.unpackedStocks;
 
     res.status(200).json({
       message: "Stocks data retrieved successfully",
       data: {
+        agradeStocks: stocksData.agradeStocks || 0,
+        bgradeStocks: stocksData.bgradeStocks || 0,
+        nonMovingStocks: stocksData.nonMovingStocks || 0,
         packedStocks: stocksData.packedStocks,
         unpackedStocks: stocksData.unpackedStocks,
         totalStocks: totalStocks,
@@ -1132,6 +1150,424 @@ const retrieveStocksData = asynchandler(async (req, res) => {
     res.status(500).json({ message: "Server error", error });
   }
 });
+
+// const retrieveManpowerCosting = asynchandler(async (req, res) => {
+//   const { date, month, year } = req.body;
+//   // console.log("date", date);
+//   const productionUserId = req.productionUserId;
+
+//   console.log("productionId2", productionUserId);
+
+//   let queryDate;
+
+//   try {
+
+//     let manpowerData;
+
+//     const report = await MTDReport.findOne({ productionUser: productionUserId }).populate(
+//       "productionUser"
+//     );
+//     if (!report) {
+//       return res
+//         .status(404)
+//         .json({ message: "Report not found for this user." });
+//     }
+
+//     // console.log("report", report)
+
+//     // **Case 1**: If a specific date is provided
+//     if (date && month && year) {
+
+//       const formattedMonth = getMonthName(month);
+//       if (!formattedMonth) {
+//         return res.status(400).json({ message: "Invalid month value." });
+//       }
+
+//       // **Normalize Year and Day**
+//       const formattedYear = year.toString();
+//       const formattedDay = date.toString().padStart(2, "0");
+
+//       // **Access Year Data**
+//       const yearData = report.yearReport?.[formattedYear];
+//       if (!yearData) {
+//         return res.status(404).json({ message: "Year data not found." });
+//       }
+
+//       // **Access Month Data**
+//       const monthData = yearData.months?.[formattedMonth];
+//       if (!monthData) {
+//         return res.status(404).json({ message: "Month data not found." });
+//       }
+
+//       console.log("Monthdata", monthData)
+
+
+//       const dayData = monthData.days?.[formattedDay] || { todayReport: {} };
+
+//       console.log("dayData", dayData.todayReport.production); 
+
+//       // Extract the day report, ensuring all types are present
+//       // const dayReport = {};
+//       // allMtdTypes.forEach((type) => {
+//       //   dayReport[type] = dayData.todayReport[type] || 0;
+//       // });
+
+
+
+
+//       // **Extract Reports for the Specific Day**
+//       // const { dayReport, monthReportTillDate, monthReport } = extractReports(
+//       //   yearData,
+//       //   monthData,
+//       //   formattedDay,
+//       //   allMtdTypes
+//       // );
+
+//       queryDate = new Date(Date.UTC(year, month - 1, date, 0, 0, 0, 0));
+
+//       const query = {
+//         user: productionUserId,
+//         date: {
+//           $gte: new Date(Date.UTC(year, month - 1, date, 0, 0, 0, 0)),
+//           $lt: new Date(Date.UTC(year, month - 1, date, 23, 59, 59, 999)),
+//         },
+//       };
+
+//       // Check for data on the specific date
+//       manpowerData = await ManPowerCosting.findOne(query);
+
+//       if (!manpowerData) {
+//         // No data found for the specific date
+//         return res.status(200).json({
+//           message: "No data found for the provided date.",
+//           data: {
+//             payroll: 0,
+//             contractorLabour: 0,
+//             otherLabour: 0,
+//             totalCost: 0,
+//             date: queryDate.toISOString(),
+//           },
+//         });
+//       }
+//     }
+//     // **Case 2**: If no date is provided, iterate backward to find the latest data
+//     else {
+//       queryDate = new Date(); // Start from today
+
+//       // let latestReportFound = false;
+//       // const currentDate = new Date();
+//       // let dateToCheck = new Date(currentDate);
+
+//       // for (let i = 0; i < 30; i++) {
+//       //   const checkYear = dateToCheck.getFullYear().toString();
+//       //   const checkMonthNumber = dateToCheck.getMonth() + 1; // getMonth() is zero-based
+//       //   const checkMonthName = getMonthName(checkMonthNumber); // Helper function to get the month name
+//       //   const checkDay = dateToCheck.getDate().toString().padStart(2, "0");
+
+//       //   if (!checkMonthName) {
+//       //     // Invalid month, skip to previous day
+//       //     dateToCheck.setDate(dateToCheck.getDate() - 1);
+//       //     continue;
+//       //   }
+
+//       //   // **Access Year Data**
+//       //   const yearData = report.yearReport?.[checkYear];
+//       //   if (!yearData) {
+//       //     // Year data not found, skip to previous day
+//       //     dateToCheck.setDate(dateToCheck.getDate() - 1);
+//       //     continue;
+//       //   }
+
+//       //   // **Access Month Data**
+//       //   const monthData = yearData.months?.[checkMonthName];
+//       //   if (!monthData) {
+//       //     // Month data not found, skip to previous day
+//       //     dateToCheck.setDate(dateToCheck.getDate() - 1);
+//       //     continue;
+//       //   }
+
+//       //   // **Access Day Data**
+//       //   const dayData = monthData.days?.[checkDay];
+//       //   if (!dayData || !dayData.todayReport) {
+//       //     // Day data not found or todayReport is empty, skip to previous day
+//       //     dateToCheck.setDate(dateToCheck.getDate() - 1);
+//       //     continue;
+//       //   }
+
+//       //   // **Check if 'production' Data is Present**
+//       //   const productionData = dayData.todayReport.production;
+//       //   if (productionData !== undefined && productionData !== null) {
+//       //     // **Extract Reports for the Found Day**
+//       //     const { dayReport, monthReportTillDate, monthReport } = extractReports(
+//       //       yearData,
+//       //       monthData,
+//       //       checkDay,
+//       //       allMtdTypes
+//       //     );
+
+//       //     // **Construct Report Date**
+//       //     const reportDate = `${checkYear}-${checkMonthName}-${checkDay}`;
+
+//       //     // **Respond with the Latest Available Production Data**
+//       //     // return res.status(200).json({
+//       //     //   message: "Latest available production data retrieved successfully.",
+//       //     //   productionData,
+//       //     //   dayReport,
+//       //     //   monthReportTillDate,
+//       //     //   monthReport,
+//       //     //   date: reportDate,
+//       //     // });
+//       //   }
+
+//       //   // **Move to the Previous Day**
+//       //   dateToCheck.setDate(dateToCheck.getDate() - 1);
+//       // }
+
+//       // If no production data is found in the last 30 days
+//       // return res.status(404).json({
+//       //   message: "No production data found in the last 30 days.",
+//       // });
+
+
+
+//       // Search for the latest document iterating backward
+//       while (!manpowerData) {
+//         const query = {
+//           user: productionUserId,
+//           date: {
+//             $gte: new Date(
+//               Date.UTC(
+//                 queryDate.getFullYear(),
+//                 queryDate.getMonth(),
+//                 queryDate.getDate(),
+//                 0, 0, 0, 0
+//               )
+//             ),
+//             $lt: new Date(
+//               Date.UTC(
+//                 queryDate.getFullYear(),
+//                 queryDate.getMonth(),
+//                 queryDate.getDate(),
+//                 23, 59, 59, 999
+//               )
+//             ),
+//           },
+//         };
+
+//         // const netProduction=await MTDReport.find(query).lean();
+
+//         console.log("query for latest documents",query);
+
+//         // const netProduction=await MTDReport.find(query)
+
+//         manpowerData = await ManPowerCosting.findOne(query);
+
+
+
+
+//         if (!manpowerData) {
+//           queryDate.setUTCDate(queryDate.getUTCDate() - 1);
+//         } else {
+//           break;
+//         }
+
+//         // Avoid infinite loop: Stop iterating after 30 days
+//         const thirtyDaysAgo = new Date();
+//         thirtyDaysAgo.setUTCDate(thirtyDaysAgo.getUTCDate() - 30);
+//         if (queryDate < thirtyDaysAgo) {
+//           break;
+//         }
+//       }
+
+//       // console.log("ManPowerCosting", manpowerData);
+
+//       // console.log("manpowerData", manpowerData);
+
+//       if (!manpowerData) {
+//         // No data found even after iterating
+//         return res.status(200).json({
+//           message: "No data found for the latest available days.",
+//           data: {
+//             payroll: 0,
+//             contractorLabour: 0,
+//             otherLabour: 0,
+//             totalCost: 0,
+//             date: null,
+//           },
+//         });
+//       }
+//     }
+
+//     // console.log("ManPowerData", manpowerData);
+
+//     // console.log("labourCost", manpowerData.contractorLabour)
+
+//     // Calculate total manpower cost
+//     const totalCost =
+//       (manpowerData.payroll || 0) +
+//       (manpowerData.contractorLabour || 0) +
+//       (manpowerData.otherLabour || 0);
+
+//     res.status(200).json({
+//       message: "Manpower costing data retrieved successfully",
+//       data: {
+//         payroll: manpowerData.payroll || 0,
+//         contractorLabour: manpowerData.contractorLabour || 0,
+//         otherLabour: manpowerData.otherLabour || 0,
+//         totalCost: totalCost,
+//         date: queryDate.toISOString(), // Return the exact date for which data was found
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Error fetching manpower costing data:", error);
+//     res.status(500).json({ message: "Server error", error });
+//   }
+// });
+
+
+
+
+const retrieveManpowerCosting = asynchandler(async (req, res) => {
+  try {
+    const { date, month, year } = req.body;
+    const productionUserId = req.productionUserId;
+    console.log("productionId2", productionUserId);
+
+    // Step 1: Fetch the MTDReport once
+    const report = await MTDReport.findOne({ productionUser: productionUserId }).populate("productionUser");
+    if (!report) {
+      return res.status(404).json({ message: "No MTD report found for this user." });
+    }
+
+    let manpowerData;
+    let queryDate;
+
+    // --------------------------------------------------------------------------------
+    // Case A: If date/month/year are provided, fetch that specific day's data
+    // --------------------------------------------------------------------------------
+    if (date && month && year) {
+      const formattedDate = new Date(Date.UTC(year, month - 1, date, 0, 0, 0, 0));
+      queryDate = formattedDate;
+
+      // Query ManPowerCosting for that date range
+      manpowerData = await ManPowerCosting.findOne({
+        user: productionUserId,
+        date: {
+          $gte: new Date(Date.UTC(year, month - 1, date, 0, 0, 0, 0)),
+          $lt: new Date(Date.UTC(year, month - 1, date, 23, 59, 59, 999)),
+        },
+      });
+
+      // If none found, respond with zeros
+      if (!manpowerData) {
+        return res.status(200).json({
+          message: "No manpower data found for the provided date.",
+          data: {
+            payroll: 0,
+            contractorLabour: 0,
+            otherLabour: 0,
+            totalCost: 0,
+            date: queryDate.toISOString(),
+            production: 0,
+          },
+        });
+      }
+    }
+    // --------------------------------------------------------------------------------
+    // Case B: If no date is provided, get the LATEST ManPowerCosting document for this user
+    // --------------------------------------------------------------------------------
+    else {
+      // Retrieve the most recent record in ManPowerCosting
+      
+      manpowerData = await ManPowerCosting.findOne({ user: productionUserId }).sort({ date: -1 });
+
+      console.log("manpowerData",manpowerData)
+
+      const thatDatee = manpowerData?.date;
+      console.log(thatDatee);
+
+      if (!manpowerData) {
+        return res.status(200).json({
+          message: "No manpower data found for the latest days.",
+          data: {
+            payroll: 0,
+            contractorLabour: 0,
+            otherLabour: 0,
+            totalCost: 0,
+            date: null,
+            production: 0,
+          },
+        });
+      }
+      queryDate = manpowerData.date; // Use the date from the found record
+
+      console.log("queryDate", queryDate);
+    }
+
+    // Calculate total cost
+    const totalCost =
+      (manpowerData.payroll || 0) +
+      (manpowerData.contractorLabour || 0) +
+      (manpowerData.otherLabour || 0);
+
+    // --------------------------------------------------------------------------------
+    // Step 2: Retrieve production data from MTDReport for the queryDate
+    // --------------------------------------------------------------------------------
+    let production = 0;
+
+    const queryYear = queryDate.getUTCFullYear().toString();
+    const queryMonth = queryDate.getUTCMonth() + 1; // 1-based
+    const queryMonthName = getMonthName(queryMonth);
+    const queryDay = queryDate.getUTCDate().toString().padStart(2, "0");
+
+    // Safely check nested structure
+    if (
+      report.yearReport &&
+      report.yearReport[queryYear] &&
+      report.yearReport[queryYear].months &&
+      report.yearReport[queryYear].months[queryMonthName] &&
+      report.yearReport[queryYear].months[queryMonthName].days &&
+      report.yearReport[queryYear].months[queryMonthName].days[queryDay] &&
+      report.yearReport[queryYear].months[queryMonthName].days[queryDay].todayReport
+    ) {
+      const dayData = report.yearReport[queryYear].months[queryMonthName].days[queryDay];
+
+      console.log("dayData", dayData)
+      // The 'todayReport' is a Map, so use .get('production') if it's truly a Map
+      // or dot notation if it's a plain object: dayData.todayReport.production
+      const productionValue = dayData.todayReport.get
+        ? dayData.todayReport.get("production")
+        : dayData.todayReport.production;
+
+      console.log("productionVAlue", productionValue)
+
+      if (productionValue !== undefined && productionValue !== null) {
+        production = productionValue;
+      }
+    }
+
+    // --------------------------------------------------------------------------------
+    // Step 3: Return the consolidated response
+    // --------------------------------------------------------------------------------
+    return res.status(200).json({
+      message: "Manpower costing data retrieved successfully",
+      data: {
+        payroll: manpowerData.payroll || 0,
+        contractorLabour: manpowerData.contractorLabour || 0,
+        otherLabour: manpowerData.otherLabour || 0,
+        totalCost,
+        date: queryDate.toISOString(),
+        production,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching manpower costing data:", error);
+    return res.status(500).json({ message: "Server error", error });
+  }
+});
+
+
+
 
 // API to get monthly target stats for all salespersons
 // const getAllMonthlyTargetStats = asynchandler(async (req, res) => {
@@ -1380,6 +1816,7 @@ export {
   adminViewTasks,
   adminFetchReport,
   retrieveStocksData,
+  retrieveManpowerCosting,
   getAllMonthlyTargetStats,
   getTotalMonthlyTargetsOverall,
 };

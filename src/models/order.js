@@ -44,7 +44,12 @@ const orderSchema = mongoose.Schema({
         type: String,
         default: () => new Date().toISOString().split('T')[0] // Automatically sets the current date in YYYY-MM-DD format
     }
-});
+},
+
+{
+    timestamps: true
+}
+);
 
 // Create and export the model
 //   module.exports = mongoose.model('Order', orderSchema);
