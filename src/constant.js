@@ -33,9 +33,8 @@ export const salesPersons = [
   { id: "SP007", name: "Ardhendu Aditya", jobId: "KIOL2234", area: "Kolkata" },
   { id: "SP008", name: "Yogesh Lahoti", jobId: "KIOL2049", area: "Pan India" },
   { id: "SP009", name: "Krishnamoorthi", jobId: "KIOL2243", area: "Singapore" },
-  { id: "SP010", name: "others", jobId: "others", area: "Pan India" },
-  
-  
+  { id: "SP010", name: "Munin Saikia", jobId: "KIOL2246", area: "Pan India"},
+  { id: "SP011", name: "others", jobId: "others", area: "Pan India" }, 
 ];
 
 // Extract jobIds for export

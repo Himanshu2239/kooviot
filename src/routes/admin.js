@@ -12,6 +12,8 @@ import {
   retrieveStocksData,
   getAllMonthlyTargetStats,
   getTotalMonthlyTargetsOverall,
+  retrieveRejectionReport,
+  
   // retrieveManpowerCosting
 } from "../controller/admin.js";
 import {
@@ -54,6 +56,7 @@ router
   .route("/stocks/retrieve")
   .post(verifyjwt, authAdmin, productionJobIdtoAdminAuth, retrieveStocksData);
 // router.route("/manPowerCosting").post(verifyjwt, authAdmin, productionJobIdtoAdminAuth, retrieveManpowerCosting)
+router.route("/rejectionReport").post(verifyjwt, authAdmin, retrieveRejectionReport);
 router.route("/barchart").post(verifyjwt, authAdmin, getAllMonthlyTargetStats);
 
 router

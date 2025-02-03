@@ -9,6 +9,7 @@ import { asynchandler } from "../utils/asynchandler.js";
 import { MTDReport } from "../models/mtd.js";
 import { TotalStocks } from "../models/totalStocks.js";
 import { ManPowerCosting } from "../models/manPowerCosting.js"
+import { rejection } from "../models/rejectionReport.js";
 // Define __dirname for ES module
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -244,6 +245,7 @@ const productionUpdateReport = async (req, res) => {
     dayData.lastUpdated = new Date();
 
     // Adjust month and year report by subtracting the previous value and adding the new value
+
     monthData.monthReport[mtdType] =
       (monthData.monthReport[mtdType] || 0) - previousValue + value;
     yearData.yearReport[mtdType] =
@@ -388,6 +390,8 @@ const updateStocksForProduction = asynchandler(async (req, res) => {
 
       // console.log("unmoved1", nonMovingStocks);
       // totalStocks.packedStocks = packedStocks;
+
+
       totalStocks.agradeStocks = agradeStocks;
       totalStocks.bgradeStocks = bgradeStocks;
       totalStocks.nonMovingStocks = nonMovingStocks;
@@ -402,7 +406,7 @@ const updateStocksForProduction = asynchandler(async (req, res) => {
         agradeStocks,
         bgradeStocks,
         nonMovingStocks,
-        packedStocks: agradeStocks + bgradeStocks + unpackedStocks,
+        packedStocks: agradeStocks + bgradeStocks + nonMovingStocks,
         unpackedStocks,
       });
 
@@ -418,7 +422,7 @@ const updateStocksForProduction = asynchandler(async (req, res) => {
   }
 });
 
- // Assuming you have a ManPowerCosting model
+// Assuming you have a ManPowerCosting model
 
 const updateManPowerCosting = asynchandler(async (req, res) => {
   const { year, month, day, payroll, contractorLabour, otherLabour } = req.body;
@@ -427,6 +431,7 @@ const updateManPowerCosting = asynchandler(async (req, res) => {
   // console.log(year, month, day, payroll, contractorLabour, otherLabour)
 
   // Check that all required fields are provided and valid
+
   if (!year || !month || !day || payroll === undefined || contractorLabour === undefined || otherLabour === undefined) {
     return res.status(400).json({
       message: "Year, month, day, payroll, contractorLabour, and otherLabour are required",
@@ -486,10 +491,68 @@ const updateManPowerCosting = asynchandler(async (req, res) => {
 });
 
 
+const updateRejectionReport = async (req, res) => {
+  const userId = req.user._id;
+  // console.log(req.user);
+  if (!userId) {
+    res.status(400).send("invalid user")
+  }
+  const { year, month, day, lineRejection, packingRejection, scrap } = req.body;
+  if (!year || !month || !day || !lineRejection || !packingRejection || !scrap) {
+    return res.status(400).json({ message: "All fields are required." });
+  }
+
+  const normalizedYear = year.toString().padStart(4, '0');
+  const normalizedMonth = month.toString().padStart(2, '0');
+  const normalizedDay = day.toString().padStart(2, '0');
+
+  // Validate that year, month, and day are in the correct format
+  if (!/^\d{4}$/.test(normalizedYear)) {
+    return res.status(400).json({ message: "Invalid year format. Must be a 4-digit year." });
+  }
+
+  if (!/^(0[1-9]|1[0-2])$/.test(normalizedMonth)) {
+    return res.status(400).json({ message: "Invalid month format. Must be 01-12." });
+  }
+
+  if (!/^(0[1-9]|[12][0-9]|3[01])$/.test(normalizedDay)) {
+    return res.status(400).json({ message: "Invalid day format. Must be 01-31." });
+  }
+
+  // Correctly construct the UTC date without time shift
+  const date = new Date(Date.UTC(Number(normalizedYear), Number(normalizedMonth) - 1, Number(normalizedDay), 0, 0, 0));
+
+  try {
+    let rejectionReport = await rejection.findOne({ userId, date });
+    // check if exist report then save it
+    if (rejectionReport) {
+        rejectionReport.lineRejection = lineRejection,
+        rejectionReport.packingRejection = packingRejection,
+        rejectionReport.scrap = scrap
+    }
+    else {
+      rejectionReport = new rejection({
+        userId,
+        lineRejection,
+        packingRejection,
+        scrap,
+        date,
+      })
+    }
+    await rejectionReport.save();
+    return res.status(201).json(rejectionReport);
+  } catch (error) {
+    return res.status(500).json({ message: "Server error", error });
+  }
+
+}
+
+
 export {
   uploadFileForProduction,
   upload,
   productionUpdateReport,
   updateStocksForProduction,
-  updateManPowerCosting
+  updateManPowerCosting,
+  updateRejectionReport
 };

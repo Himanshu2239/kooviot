@@ -5,6 +5,7 @@ import {
   uploadFileForProduction,
   productionUpdateReport,
   updateStocksForProduction,
+  updateRejectionReport,
   // updateManPowerCosting,
 } from "../controller/production.js";
 
@@ -42,5 +43,6 @@ router
   .route("/stocks/update")
   .post(verifyjwt, authProduction, updateStocksForProduction);
 // router.route("/manPowerCosting/update").post(verifyjwt, authProduction, updateManPowerCosting)
+router.route('/rejectionReport/update').post(verifyjwt, authProduction, updateRejectionReport);
 
 export default router;

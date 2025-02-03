@@ -30,7 +30,7 @@ const generateAccessandRefreshToken = async (userId) => {
 
 const registerUser = asynchandler(async (req, res) => {
   // get user details (validation)
-  // put it into  mongodb( if new user)(chek old user) (you have to make a object)
+  // put it into mongodb( if new user)(chek old user) (you have to make a object)
   //sent success msg(check for user creation) (but remove password and refresh token form response data.)
   // console.log(req.body);
   const { fullName, jobId, password, area, role } = req.body;

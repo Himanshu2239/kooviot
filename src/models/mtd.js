@@ -47,6 +47,7 @@ const yearReportSchema = new mongoose.Schema({
   },
 });
 
+
 const mtdReportSchema = new mongoose.Schema(
   {
     productionUser: {
@@ -67,5 +68,6 @@ const mtdReportSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
 
 export const MTDReport = mongoose.model("MTDReport", mtdReportSchema);

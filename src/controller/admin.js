@@ -10,6 +10,7 @@ import AWS from "aws-sdk";
 import path from "path";
 import { jobIds } from "../constant.js";
 import { ManPowerCosting } from "../models/manPowerCosting.js";
+import { rejection } from "../models/rejectionReport.js";
 
 // Salespersons data array
 const salesPersons = [
@@ -32,7 +33,8 @@ const salesPersons = [
   { id: "SP007", name: "Ardhendu Aditya", jobId: "KIOL2234", area: "Kolkata" },
   { id: "SP008", name: "Yogesh", jobId: "KIOL2049", area: "Pan India" },
   { id: "SP009", name: "Krishnamoorthi", jobId: "KIOL2243", area: "Singapore" },
-  { id: "SP0010", name: "others", jobId: "others", area: "Pan India" },
+  { id: "SP0010", name: "Munin Saikia", jobId: "KIOL2246", area: "Pan India" },
+  { id: "SP0011", name: "others", jobId: "others", area: "Pan India" },
 ];
 
 // Initialize AWS S3
@@ -1478,10 +1480,10 @@ const retrieveManpowerCosting = asynchandler(async (req, res) => {
     // --------------------------------------------------------------------------------
     else {
       // Retrieve the most recent record in ManPowerCosting
-      
+
       manpowerData = await ManPowerCosting.findOne({ user: productionUserId }).sort({ date: -1 });
 
-      console.log("manpowerData",manpowerData)
+      console.log("manpowerData", manpowerData)
 
       const thatDatee = manpowerData?.date;
       console.log(thatDatee);
@@ -1567,6 +1569,159 @@ const retrieveManpowerCosting = asynchandler(async (req, res) => {
 });
 
 
+const retrieveRejectionReport = async (req, res) => {
+  try {
+    const { payload } = req.body;  // Get date from query parameters
+    // console.log("payload", payload) 
+    const userId = req.user?._id;
+    const date = payload; // Get userId from authenticated request
+
+    if (!userId) {
+      return res.status(400).json({ message: "Invalid user" });
+    }
+
+    // let filter = { userId };
+
+    let result = {};
+
+    if (date) {
+      // Parse the selected date
+      const selectedDate = new Date(date);
+      if (isNaN(selectedDate.getTime())) {
+        return res.status(400).json({ message: "Invalid date format" });
+      }
+
+      // Extract year and month
+      const year = selectedDate.getUTCFullYear();
+      const month = selectedDate.getUTCMonth();
+
+      // Start of the month
+      const monthStart = new Date(Date.UTC(year, month, 1, 0, 0, 0));
+      // End of the selected date
+      const selectedDayEnd = new Date(Date.UTC(year, month, selectedDate.getUTCDate(), 23, 59, 59));
+
+      // Sum of rejections from month start to selected date
+      const monthToDateSum = await rejection.aggregate([
+        {
+          $match: {
+            // userId: new mongoose.Types.ObjectId(userId),
+            date: { $gte: monthStart, $lte: selectedDayEnd },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            totalLineRejection: { $sum: "$lineRejection" },
+            totalPackingRejection: { $sum: "$packingRejection" },
+            totalScrap: { $sum: "$scrap" },
+          },
+        },
+      ]);
+
+      // Get data for the specific selected date
+      const specificDate = new Date(date);
+      console.log(specificDate);
+      if (isNaN(specificDate.getTime())) {
+        return res.status(400).json({ message: "Invalid date format" });
+      }
+      const startOfDay = new Date(specificDate.setUTCHours(0, 0, 0, 0));
+      const endOfDay = new Date(specificDate.setUTCHours(23, 59, 59, 999));
+      const specificDateData = await rejection.findOne({
+        date: { $gte: startOfDay, $lt: endOfDay }
+        // date: { $gte: selectedDate, $lt: new Date(selectedDate.getTime() + 86400000) }, // Range for the specific day
+      }).lean();
+
+      result = {
+        selectedDateData: specificDateData || {},
+        monthToDateSum: monthToDateSum.length ? monthToDateSum[0] : { totalLineRejection: 0, totalPackingRejection: 0, totalScrap: 0 },
+      };
+    } else {
+      // If no date is selected, get the most recent entry within the last 30 days
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      // console.log("thirtyDaysAgo", thirtyDaysAgo);
+
+      const lastUpdatedData = await rejection
+        .findOne({ date: { $gte: thirtyDaysAgo } })
+        .sort({ date: -1 }) // Get latest entry
+        .lean();
+      // console.log(lastUpdatedData);
+
+       const getMonthData = async (date) => {
+          // Parse the selected date
+          const selectedDate =  date;
+          if (isNaN(selectedDate.getTime())) {
+            return res.status(400).json({ message: "Invalid date format" });
+          }
+    
+          // Extract year and month
+          const year = selectedDate.getUTCFullYear();
+          const month = selectedDate.getUTCMonth();
+    
+          // Start of the month
+          const monthStart = new Date(Date.UTC(year, month, 1, 0, 0, 0));
+          // End of the selected date
+          const selectedDayEnd = new Date(Date.UTC(year, month, selectedDate.getUTCDate(), 23, 59, 59));
+    
+          // Sum of rejections from month start to selected date
+          const monthToDateSum = await rejection.aggregate([
+            {
+              $match: {
+                // userId: new mongoose.Types.ObjectId(userId),
+                date: { $gte: monthStart, $lte: selectedDayEnd },
+              },
+            },
+            {
+              $group: {
+                _id: null,
+                totalLineRejection: { $sum: "$lineRejection" },
+                totalPackingRejection: { $sum: "$packingRejection" },
+                totalScrap: { $sum: "$scrap" },
+              },
+            },
+          ]);
+    
+          // Get data for the specific selected date
+          const specificDate = new Date(date);
+          // console.log(specificDate);
+          if (isNaN(specificDate.getTime())) {
+            return res.status(400).json({ message: "Invalid date format" });
+          }
+
+          const startOfDay = new Date(specificDate.setUTCHours(0, 0, 0, 0));
+          const endOfDay = new Date(specificDate.setUTCHours(23, 59, 59, 999));
+          const specificDateData = await rejection.findOne({
+            date: { $gte: startOfDay, $lt: endOfDay }
+            // date: { $gte: selectedDate, $lt: new Date(selectedDate.getTime() + 86400000) }, // Range for the specific day
+          }).lean();
+    
+          result = {
+            selectedDateData: specificDateData || {},
+            monthToDateSum: monthToDateSum.length ? monthToDateSum[0] : { totalLineRejection: 0, totalPackingRejection: 0, totalScrap: 0 },
+            lastUpdatedDate: date
+          };
+         return result;
+        }
+      // let monthData = {};
+      if(lastUpdatedData){
+        result = await getMonthData(lastUpdatedData.date);
+        // console.log("month of data", result);
+      }
+
+      // console.log("last30day", lastUpdatedData);
+
+      // result = {
+      //   lastUpdatedData: result || {},
+      // };
+    }
+
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error("Error fetching rejection data:", error);
+    return res.status(500).json({ message: "Server error", error });
+  }
+};
 
 
 // API to get monthly target stats for all salespersons
@@ -1805,6 +1960,8 @@ const getTotalMonthlyTargetsOverall = asynchandler(async (req, res) => {
 
 
 
+
+
 export {
   assignMonthlyTargetToSalesperson,
   getMonthlyTargetStats,
@@ -1817,6 +1974,7 @@ export {
   adminFetchReport,
   retrieveStocksData,
   retrieveManpowerCosting,
+  retrieveRejectionReport,
   getAllMonthlyTargetStats,
   getTotalMonthlyTargetsOverall,
 };
