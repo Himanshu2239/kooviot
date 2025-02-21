@@ -498,8 +498,13 @@ const updateRejectionReport = async (req, res) => {
     res.status(400).send("invalid user")
   }
   const { year, month, day, lineRejection, packingRejection, scrap } = req.body;
-  if (!year || !month || !day || !lineRejection || !packingRejection || !scrap) {
-    return res.status(400).json({ message: "All fields are required." });
+  
+  // if (!year || !month || !day || !lineRejection || !packingRejection || !scrap) {
+  //   return res.status(400).json({ message: "All fields are required." });
+  // }
+
+    if (year == null || month == null || day == null || lineRejection == null || packingRejection == null || scrap == null) {
+      return res.status(400).json({ message: "All fields are required." });
   }
 
   const normalizedYear = year.toString().padStart(4, '0');
