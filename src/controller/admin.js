@@ -634,6 +634,7 @@ const adminViewTasks = async (req, res) => {
         taskId: task._id,
         taskDescription: task.description,
         fileUrl: task.fileUrl || null,
+        additionalDetails: task.additionalDetails,
       })),
       incompleteTasks: incompleteTasks.map((task) => ({
         taskId: task._id,
@@ -651,7 +652,6 @@ const adminViewTasks = async (req, res) => {
     res.status(500).json({ message: "Server error. Please try again later." });
   }
 };
-
 // Controller for adminFetchReport
 // const adminFetchReport = async (req, res) => {
 //   try {
