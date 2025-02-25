@@ -13,6 +13,13 @@ const taskSchema = new Schema(
       required: true,
       trim: true,
     },
+    additionalDetails: {
+      phoneNumber: { type: String, trim: true, default: null },
+      emailId: { type: String, trim: true, lowercase: true, default: null },
+      companyName: { type: String, trim: true, default: null },
+      contactPersonName: { type: String, trim: true, default: null },
+      feedback: { type: String, trim: true, default: null },
+    },
     date: {
       type: Date,
       required: true,

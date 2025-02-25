@@ -8,6 +8,9 @@ import { GlobalPermission } from "../models/permission.js";
 import { ApiResponse } from "../utils/apiresponse.js";
 import { uploadToS3 } from "../utils/uploadToS3.js";
 import jwt from "jsonwebtoken";
+
+
+import mongoose from "mongoose";
 //
 
 const generateAccessandRefreshToken = async (userId) => {
@@ -1028,60 +1031,114 @@ const canAddTasks = asynchandler(async (req, res) => {
 
 //taskid
 const markTaskAsCompleted = asynchandler(async (req, res) => {
-  const { taskId } = req.body; // Task ID to be marked as completed
+  const {
+    taskId,
+    contactPersonName,
+    companyName,
+    emailId,
+    phoneNumber,
+    feedback,
+  } = req.body; // Task ID and additional details
 
+  console.log(
+    "taskId ,contactPersonName",
+    taskId,
+    contactPersonName,
+    companyName,
+    emailId,
+    phoneNumber,
+    feedback
+  );
+
+  // Validate required fields (only emailId is optional)
   if (!taskId) {
     return res.status(400).json({ message: "Task ID is required." });
   }
+  if (!contactPersonName) {
+    return res
+      .status(400)
+      .json({ message: "Contact Person Name is required." });
+  }
+  if (!companyName) {
+    return res.status(400).json({ message: "Company Name is required." });
+  }
+  if (!phoneNumber) {
+    return res.status(400).json({ message: "Phone Number is required." });
+  }
+  if (!feedback) {
+    return res.status(400).json({ message: "Feedback is required." });
+  }
+
+  const session = await mongoose.startSession();
 
   try {
+    session.startTransaction();
+
     // Get the salesperson's jobId from req.user
     const { jobId } = req.user;
 
     // Find the salesperson by jobId
-    const salesperson = await User.findOne({ jobId, role: "salesperson" });
+    const salesperson = await User.findOne({
+      jobId,
+      role: "salesperson",
+    }).session(session);
     if (!salesperson) {
+      await session.abortTransaction();
       return res.status(404).json({ message: "Salesperson not found." });
     }
 
     // Find the task by taskId and ensure it belongs to the salesperson
     const task = await Task.findOne({
       _id: taskId,
-      userId: salesperson._id, // Ensure the task belongs to the salesperson
-    });
+      userId: salesperson._id,
+    }).session(session);
 
     if (!task) {
+      await session.abortTransaction();
       return res.status(404).json({ message: "Task not found." });
     }
 
-    // Mark the task as completed
+    // Update additionalDetails and mark the task as completed
+    task.additionalDetails = {
+      contactPersonName,
+      companyName,
+      emailId: emailId || null, // Optional field
+      phoneNumber,
+      feedback,
+    };
     task.isCompleted = true;
-    await task.save();
+    await task.save({ session });
 
-    // Update the daily and monthly task completion in the target model
+    // Update daily and monthly task completion in the target model
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     const target = await Target.findOne({
       userId: salesperson._id,
       date: today,
-    });
+    }).session(session);
 
     if (target) {
-      // Increment daily completed target and total monthly completed target
       target.dailyCompletedTarget += 1;
       target.totalMonthlyTaskCompleted += 1;
-      await target.save();
+      await target.save({ session });
     }
 
-    // Respond with success
+    // Commit the transaction
+    await session.commitTransaction();
+
     res.status(200).json({
       message: "Task marked as completed successfully.",
       task,
     });
   } catch (error) {
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
     console.error(error);
     res.status(500).json({ message: "Server error. Please try again later." });
+  } finally {
+    session.endSession();
   }
 });
 
