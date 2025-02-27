@@ -1040,15 +1040,7 @@ const markTaskAsCompleted = asynchandler(async (req, res) => {
     feedback,
   } = req.body; // Task ID and additional details
 
-  console.log(
-    "taskId ,contactPersonName",
-    taskId,
-    contactPersonName,
-    companyName,
-    emailId,
-    phoneNumber,
-    feedback
-  );
+
 
   // Validate required fields (only emailId is optional)
   if (!taskId) {
@@ -1061,9 +1053,6 @@ const markTaskAsCompleted = asynchandler(async (req, res) => {
   }
   if (!companyName) {
     return res.status(400).json({ message: "Company Name is required." });
-  }
-  if (!phoneNumber) {
-    return res.status(400).json({ message: "Phone Number is required." });
   }
   if (!feedback) {
     return res.status(400).json({ message: "Feedback is required." });
@@ -1103,7 +1092,7 @@ const markTaskAsCompleted = asynchandler(async (req, res) => {
       contactPersonName,
       companyName,
       emailId: emailId || null, // Optional field
-      phoneNumber,
+      phoneNumber: phoneNumber || null, //optional field
       feedback,
     };
     task.isCompleted = true;
