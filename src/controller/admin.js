@@ -34,7 +34,8 @@ const salesPersons = [
   { id: "SP008", name: "Yogesh", jobId: "KIOL2049", area: "Pan India" },
   { id: "SP009", name: "Krishnamoorthi", jobId: "KIOL2243", area: "Singapore" },
   { id: "SP0010", name: "Munin Saikia", jobId: "KIOL2246", area: "Pan India" },
-  { id: "SP0011", name: "others", jobId: "others", area: "Pan India" },
+  { id: "SP0011", name: "Shourajit Biswas", jobId: "KIOL2247", area: "Agartala" },
+  { id: "SP0012", name: "others", jobId: "others", area: "Pan India" },
 ];
 
 // Initialize AWS S3
