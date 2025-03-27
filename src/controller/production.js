@@ -498,8 +498,8 @@ const updateRejectionReport = async (req, res) => {
     res.status(400).send("invalid user")
   }
   const { year, month, day, lineRejection, packingRejection, scrap } = req.body;
-  if (!year || !month || !day || !lineRejection || !packingRejection || !scrap) {
-    return res.status(400).json({ message: "All fields are required." });
+  if (!year || !month || !day) {
+    return res.status(400).json({ message: "Date is required." });
   }
 
   const normalizedYear = year.toString().padStart(4, '0');
