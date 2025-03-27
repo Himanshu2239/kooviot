@@ -46,17 +46,20 @@ const rejectionSchema = new Schema(
       required: true,
       default: () => new Date(),  // ✅ Fixed default value
     },
-    lineRejection: {
+   lineRejection: {
       type: Number,
-      required: true,  // ✅ Fixed 'require' to 'required'
+      default: 0,
+      set: v => v ?? 0, // Converts null/undefined to 0
     },
     packingRejection: {
       type: Number,
-      required: true,  // ✅ Fixed 'require' to 'required'
+      default: 0,
+      set: v => v ?? 0,
     },
     scrap: {
       type: Number,
-      required: true,  // ✅ Fixed 'require' to 'required'
+      default: 0,
+      set: v => v ?? 0,
     },
   },
   {
