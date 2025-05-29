@@ -11,6 +11,8 @@ import path from "path";
 import { jobIds } from "../constant.js";
 import { ManPowerCosting } from "../models/manPowerCosting.js";
 import { rejection } from "../models/rejectionReport.js";
+import { ProductionMes } from "../models/productionMes.js";
+import { PackingMes } from "../models/packingMes.js";
 
 // Salespersons data array
 const salesPersons = [
@@ -916,13 +918,32 @@ const adminFetchReport = async (req, res) => {
       }
 
       // **Check if All Required MTD Types are Present and Not Null**
-      const hasAllTypes = allMtdTypes.every(
+      // const hasAllTypes = allMtdTypes.every(
+      //   (type) =>
+      //     dayData.todayReport[type] !== undefined &&
+      //     dayData.todayReport[type] !== null
+      // );
+
+
+      // if (hasAllTypes) {
+      //   // **Extract Reports for the Found Day**
+      //   const { dayReport, monthReportTillDate, monthReport } = extractReports(
+      //     yearData,
+      //     monthData,
+      //     checkDay,
+      //     allMtdTypes
+      //   );
+
+
+      // **Check if At Least One Required MTD Type is Present and Not Null**
+      const hasAnyType = allMtdTypes.some(
         (type) =>
           dayData.todayReport[type] !== undefined &&
           dayData.todayReport[type] !== null
       );
 
-      if (hasAllTypes) {
+
+      if (hasAnyType) {
         // **Extract Reports for the Found Day**
         const { dayReport, monthReportTillDate, monthReport } = extractReports(
           yearData,
@@ -1450,6 +1471,7 @@ const retrieveManpowerCosting = asynchandler(async (req, res) => {
     // --------------------------------------------------------------------------------
     // Case A: If date/month/year are provided, fetch that specific day's data
     // --------------------------------------------------------------------------------
+
     if (date && month && year) {
       const formattedDate = new Date(Date.UTC(year, month - 1, date, 0, 0, 0, 0));
       queryDate = formattedDate;
@@ -1651,63 +1673,63 @@ const retrieveRejectionReport = async (req, res) => {
         .lean();
       // console.log(lastUpdatedData);
 
-       const getMonthData = async (date) => {
-          // Parse the selected date
-          const selectedDate =  date;
-          if (isNaN(selectedDate.getTime())) {
-            return res.status(400).json({ message: "Invalid date format" });
-          }
-    
-          // Extract year and month
-          const year = selectedDate.getUTCFullYear();
-          const month = selectedDate.getUTCMonth();
-    
-          // Start of the month
-          const monthStart = new Date(Date.UTC(year, month, 1, 0, 0, 0));
-          // End of the selected date
-          const selectedDayEnd = new Date(Date.UTC(year, month, selectedDate.getUTCDate(), 23, 59, 59));
-    
-          // Sum of rejections from month start to selected date
-          const monthToDateSum = await rejection.aggregate([
-            {
-              $match: {
-                // userId: new mongoose.Types.ObjectId(userId),
-                date: { $gte: monthStart, $lte: selectedDayEnd },
-              },
-            },
-            {
-              $group: {
-                _id: null,
-                totalLineRejection: { $sum: "$lineRejection" },
-                totalPackingRejection: { $sum: "$packingRejection" },
-                totalScrap: { $sum: "$scrap" },
-              },
-            },
-          ]);
-    
-          // Get data for the specific selected date
-          const specificDate = new Date(date);
-          // console.log(specificDate);
-          if (isNaN(specificDate.getTime())) {
-            return res.status(400).json({ message: "Invalid date format" });
-          }
-
-          const startOfDay = new Date(specificDate.setUTCHours(0, 0, 0, 0));
-          const endOfDay = new Date(specificDate.setUTCHours(23, 59, 59, 999));
-          const specificDateData = await rejection.findOne({
-            date: { $gte: startOfDay, $lt: endOfDay }
-            // date: { $gte: selectedDate, $lt: new Date(selectedDate.getTime() + 86400000) }, // Range for the specific day
-          }).lean();
-    
-          result = {
-            selectedDateData: specificDateData || {},
-            monthToDateSum: monthToDateSum.length ? monthToDateSum[0] : { totalLineRejection: 0, totalPackingRejection: 0, totalScrap: 0 },
-            lastUpdatedDate: date
-          };
-         return result;
+      const getMonthData = async (date) => {
+        // Parse the selected date
+        const selectedDate = date;
+        if (isNaN(selectedDate.getTime())) {
+          return res.status(400).json({ message: "Invalid date format" });
         }
+
+        // Extract year and month
+        const year = selectedDate.getUTCFullYear();
+        const month = selectedDate.getUTCMonth();
+
+        // Start of the month
+        const monthStart = new Date(Date.UTC(year, month, 1, 0, 0, 0));
+        // End of the selected date
+        const selectedDayEnd = new Date(Date.UTC(year, month, selectedDate.getUTCDate(), 23, 59, 59));
+
+        // Sum of rejections from month start to selected date
+        const monthToDateSum = await rejection.aggregate([
+          {
+            $match: {
+              // userId: new mongoose.Types.ObjectId(userId),
+              date: { $gte: monthStart, $lte: selectedDayEnd },
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              totalLineRejection: { $sum: "$lineRejection" },
+              totalPackingRejection: { $sum: "$packingRejection" },
+              totalScrap: { $sum: "$scrap" },
+            },
+          },
+        ]);
+
+        // Get data for the specific selected date
+        const specificDate = new Date(date);
+        // console.log(specificDate);
+        if (isNaN(specificDate.getTime())) {
+          return res.status(400).json({ message: "Invalid date format" });
+        }
+
+        const startOfDay = new Date(specificDate.setUTCHours(0, 0, 0, 0));
+        const endOfDay = new Date(specificDate.setUTCHours(23, 59, 59, 999));
+        const specificDateData = await rejection.findOne({
+          date: { $gte: startOfDay, $lt: endOfDay }
+          // date: { $gte: selectedDate, $lt: new Date(selectedDate.getTime() + 86400000) }, // Range for the specific day
+        }).lean();
+
+        result = {
+          selectedDateData: specificDateData || {},
+          monthToDateSum: monthToDateSum.length ? monthToDateSum[0] : { totalLineRejection: 0, totalPackingRejection: 0, totalScrap: 0 },
+          lastUpdatedDate: date
+        };
+        return result;
+      }
       // let monthData = {};
-      if(lastUpdatedData){
+      if (lastUpdatedData) {
         result = await getMonthData(lastUpdatedData.date);
         // console.log("month of data", result);
       }
@@ -1961,6 +1983,56 @@ const getTotalMonthlyTargetsOverall = asynchandler(async (req, res) => {
   }
 });
 
+const fetchProductionMesData = async (req, res) => {
+  try {
+    const data = await ProductionMes.find({});
+    return res.json({
+      success: true,
+      data
+    })
+  }
+  catch (error) {
+    console.log(error);
+  }
+}
+
+// const fetchPackingMesDataByMcode = async (req, res) => {
+//     try {
+//     await connectDB();
+
+//     // Get all packing records
+//     const packingData = await PackingMes.find().lean();
+
+//     // Extract items from each record
+//     const items = packingData.flatMap(entry =>
+//       entry.items.map(item => ({
+//         materialCode: item.materialCode,
+//         grade: item.grade,
+//         pieces: item.pieces,
+//         packingType: item.packingType,
+//       }))
+//     );
+
+//     return Response.json({ success: true, data: items });
+//   } catch (error) {
+//     return Response.json({ success: false, message: error.message }, { status: 500 });
+//   }
+
+// }
+
+const fetchPackingMesDataForReport = async (req, res) => {
+    try {
+    // await dbConnect();
+    console.log(2);
+    const packingRecords = await PackingMes.find({}).sort({ createdAt: -1 }).lean();
+    return res.status(200).json({ success: true, data: packingRecords });
+  } catch (error) {
+    console.error('Error fetching packing records:', error);
+    res.status(500).json({ success: false, message: 'Internal Server Error' });
+  }
+}
+
+
 
 
 
@@ -1980,4 +2052,6 @@ export {
   retrieveRejectionReport,
   getAllMonthlyTargetStats,
   getTotalMonthlyTargetsOverall,
+  fetchProductionMesData,
+  fetchPackingMesDataForReport
 };

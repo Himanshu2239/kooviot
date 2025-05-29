@@ -13,6 +13,8 @@ import {
   getAllMonthlyTargetStats,
   getTotalMonthlyTargetsOverall,
   retrieveRejectionReport,
+  fetchProductionMesData,
+  fetchPackingMesDataForReport,
   
   // retrieveManpowerCosting
 } from "../controller/admin.js";
@@ -62,5 +64,10 @@ router.route("/barchart").post(verifyjwt, authAdmin, getAllMonthlyTargetStats);
 router
   .route("/totalStatsOfSalesperson")
   .post(verifyjwt, authAdmin, getTotalMonthlyTargetsOverall);
+
+
+// Mes API
+router.route('/fetchProductionMesData').get(fetchProductionMesData);
+router.route('/report/fetchPackingMesData').get(fetchPackingMesDataForReport);
 
 export default router;

@@ -1,35 +1,3 @@
-// import mongoose from "mongoose";
-// const { Schema } = mongoose;
-
-// const rejectionSchema = new Schema({
-//     userId : {
-//       type:  Schema.Types.ObjectId,
-//       ref: "User",
-//       required: true
-//     },
-//     Date : {
-//       type: Date,
-//       required: true,
-//       default: () => new Date.toISOString()
-//     },
-//     lineRejection: {
-//        type: Number,
-//        require: true,
-//     },
-//     packingRejection:{
-//         type: Number,
-//         require: true
-//     },
-//     scrap:{
-//         type : Number,
-//         require: true
-//     }
-// },{
-//   timestamps: true
-// }
-// )
-
-// export const rejection = mongoose.model("rejection",  rejectionSchema);
 
 import mongoose from "mongoose";
 const { Schema } = mongoose;
@@ -67,4 +35,5 @@ const rejectionSchema = new Schema(
   }
 );
 
-export const rejection = mongoose.model("Rejection", rejectionSchema);
+export const rejection = mongoose.model("Rejection", rejectionSchema);   
+

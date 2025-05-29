@@ -1,7 +1,7 @@
 export const DB_NAME = "youtube";
 export const MAX_LIMIT_OF_DATA = "15000kb";
 export const STORE_STATIC_DATA = "public";
-export const APPLICATION_ROLE = ["admin", "salesperson", "production"];
+export const APPLICATION_ROLE = ["admin", "salesperson", "production", "packing", "dispatchout", "invoice"];
 export const DOCUMENT_TYPE = [
   "glovesProduction",
   "fgStocks",
@@ -39,6 +39,8 @@ export const salesPersons = [
 ];
 
 // Extract jobIds for export
+
+export const productionId = "6711b93eac805ddeb8feb46f";
 
 export const jobIds = salesPersons.map((person) => person.jobId);
 

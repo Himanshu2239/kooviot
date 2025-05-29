@@ -6,6 +6,11 @@ import {
   productionUpdateReport,
   updateStocksForProduction,
   updateRejectionReport,
+  updateProductionMesData,
+  updatePackinigMesData,
+  updatePackingRejMes,
+  updateDispatchOutMesData,
+  updateInvoiceMesData,
   // updateManPowerCosting,
 } from "../controller/production.js";
 
@@ -25,6 +30,7 @@ const upload = multer({ storage });
 const router = Router();
 
 // Route for production person to upload files
+
 router
   .route("/upload")
   .post(
@@ -43,6 +49,14 @@ router
   .route("/stocks/update")
   .post(verifyjwt, authProduction, updateStocksForProduction);
 // router.route("/manPowerCosting/update").post(verifyjwt, authProduction, updateManPowerCosting)
-router.route('/rejectionReport/update').post(verifyjwt, authProduction, updateRejectionReport);
+router.route('/rejectionReport/update').post(verifyjwt, authProduction, updateRejectionReport); 
+
+// Mes API
+router.route('/productionMesData/update').post(verifyjwt, updateProductionMesData);
+router.route('/packingMesData/update').post(verifyjwt, updatePackinigMesData);
+router.route('/packingRejMes/update').post(verifyjwt, updatePackingRejMes);
+router.route('/dispachOutMes/update').post(verifyjwt, updateDispatchOutMesData)
+router.route('/invoiceMesData/update').post(verifyjwt, updateInvoiceMesData);
+
 
 export default router;
