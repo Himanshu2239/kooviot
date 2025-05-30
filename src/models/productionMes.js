@@ -47,14 +47,16 @@
 
 
 import mongoose, { Schema } from 'mongoose';
+import { deflate } from 'zlib';
 
 // Subschema for Production Items
 const productionItemSchema = new Schema({
   batchId: { type: String, required: true, trim: true },
   materialCode: { type: String, required: true, trim: true },
-  pieces: { type: Number, required: true, min: 0 }
+  pieces: { type: Number, required: true, min: 0 },
+  productionInKg: {type: Number, required: true}
 }, { _id: false });
-
+  
 // Subschema for Work Logs
 const workLogSchema = new Schema({
   start: { type: String, required: true },
@@ -80,8 +82,9 @@ const productionMesSchema = new Schema({
 
   productionItems: [productionItemSchema],
   totalPieces: { type: Number, default: 0, min: 0 },
+  totalProductionInKg: {type: Number},
   lineRejection: { type: Number, default: 0, min: 0 },
-
+  lineRejectionInkg: {type: Number, default: 0, min: 0},
   workLogItems: [workLogSchema],
   totalDuration: { type: String, default: "0h" }
 }, {
