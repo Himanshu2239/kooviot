@@ -16,6 +16,7 @@ import PackingRejMes from "../models/packingRejMes.js";
 import DispatchOutMes from "../models/dispatchOutMes.js";
 import { productionId } from "../constant.js";
 import { Invoice } from "../models/invoice.js";
+import { error } from "console";
 
 // import { packingMe } from "../models/packingMes.js";
 // Define __dirname for ES module
@@ -765,8 +766,8 @@ const updatePackinigMesData = async (req, res) => {
       const date = new Date(Date.UTC(Number(normalizedYear), monthIndex - 1, Number(normalizedDay), 0, 0, 0));
 
       const existingData = await PackingMes.findOne({ date });
-      if(existingData){
-        return res.status(400).json({success: false, message: "Data is already exist"})
+      if (existingData) {
+        return res.status(400).json({ success: false, message: "Data is already exist" })
       }
 
       let agrade = 0;
@@ -846,7 +847,7 @@ const updatePackinigMesData = async (req, res) => {
         return res.status(400).json({ success: false, message: "Cannot add stock to a past date older than last recorded." });
       }
 
-      
+
       await PackingMes.create({
         userId,
         date,
@@ -970,8 +971,8 @@ const updatePackingRejMes = async (req, res) => {
       const date = new Date(Date.UTC(Number(normalizedYear), monthIndex - 1, Number(normalizedDay), 0, 0, 0));
 
       const existingPackingRejection = await PackingRejMes.findOne({ date });
-      if(existingPackingRejection){
-        return res.status(400).json({success: false, message: "Data is already exists"})
+      if (existingPackingRejection) {
+        return res.status(400).json({ success: false, message: "Data is already exists" })
       }
 
       await PackingRejMes.create({
@@ -995,7 +996,7 @@ const updatePackingRejMes = async (req, res) => {
         });
       }
       await rejectionReport.save();
-      res.status(200).json({success: "true", message: "Packing Rejection Saved Successfully"})
+      res.status(200).json({ success: "true", message: "Packing Rejection Saved Successfully" })
     }
     catch (error) {
       res.status(500).send(error)
@@ -1049,29 +1050,121 @@ const updateDispatchOutMesData = async (req, res) => {
 
       const date = new Date(Date.UTC(Number(normalizedYear), monthIndex - 1, Number(normalizedDay), 0, 0, 0));
 
-      const invoiceNoForDispatch = await Invoice.findOne({ invoiceNo })
-       
-      if(!invoiceNoForDispatch)
-       return res.status(400).json({success: "false", error: "Invoice No is not exists"});
+      // if same date and invoice no is exist in dispatch DB show error data is already exist
+      const existingEntry = await DispatchOutMes.findOne({date, invoiceNo});
+      if(existingEntry){
+         return res.status(400).json({ success : false, message: "Data is already exists"});
+      }
 
+      let agrade = 0;
+      let bgrade = 0;
+      let nonMoving = 0;
 
-      // console.log("date", date);
-      // const existingEntry = await DispatchOutMes.findOne({ invoiceNo });
-
-
-      // if (existingEntry) {
-      //   return res.status(400).json({ success: false, error: 'Invoice number already exists' });
-      // }
-
-      const dispatchEntry = new DispatchOutMes({
-        userId,
-        date,
-        invoiceNo,
-        items,
-        totalPieces,
+      // Calculate total pieces by grade
+      items.forEach((item) => {
+        const pieces = Number(item.pieces) || 0;
+        if (item.grade === "A") agrade += pieces;
+        else if (item.grade === "B") bgrade += pieces;
+        else if (item.grade === "Non moving") nonMoving += pieces;
       });
 
-      await dispatchEntry.save();
+      // Normalize the given date
+      const givenDate = date;
+      // givenDate.setHours(0, 0, 0, 0);
+
+      // Get the latest stock in the last 20 days
+      const twentyDaysAgo = new Date();
+      twentyDaysAgo.setDate(twentyDaysAgo.getDate() - 20);
+
+      // console.log("twentyDaysAgo", twentyDaysAgo)
+
+
+
+      const recentStock = await TotalStocks.find({
+        user: userId,
+        date: { $gte: twentyDaysAgo }
+      }).sort({ date: -1 }).limit(1); // Get the latest one
+
+      // console.log("recentStock", recentStock);
+
+      let matchedStock = null;
+      let latestStockDate = null;
+      let latestStock = null;
+
+      if (recentStock.length > 0) {
+        latestStock = recentStock[0];
+        const stockDate = latestStock.date;
+        // stockDate.setHours(0, 0, 0, 0);
+        latestStockDate = stockDate;
+
+        // console.log("latestStockDate and givenDate", latestStockDate, givenDate)
+      if(latestStockDate.getTime() > givenDate.getTime()){
+      return res.status(400).json({success: false, message: "Cannot add stock to a past date older than last recorded."})
+      }
+
+
+
+        // console.log("matchTime and latestTime",stockDate.getTime(), givenDate.getTime())
+        // if (latestStock.agradeStocks < agrade || latestStock.bgradeStocks < bgrade || latestStock.nonMovingStocks < nonMoving)
+        //   return res.status(400).json({ success: false, message: "Amount of stock is not present" })
+
+        let insufficientTypes = [];
+
+        if (latestStock.agradeStocks < agrade) insufficientTypes.push("A Grade");
+        if (latestStock.bgradeStocks < bgrade) insufficientTypes.push("B Grade");
+        if (latestStock.nonMovingStocks < nonMoving) insufficientTypes.push("Non-Moving");
+
+        if (insufficientTypes.length > 0) {
+          return res.status(400).json({
+            success: false,
+            message: `Insufficient stock in: ${insufficientTypes.join(", ")}`,
+          });
+        }
+
+        if (stockDate.getTime() === givenDate.getTime()) {
+          matchedStock = latestStock; // Dates match
+        }
+      }
+      else {
+        return res.status(400).json({ success: false, message: "No older stock in record" });
+      }
+
+      // === CASE 1: Date matches existing entry ===
+
+      if (matchedStock) {
+
+        matchedStock.agradeStocks -= agrade;
+        matchedStock.bgradeStocks -= bgrade;
+        matchedStock.nonMovingStocks -= nonMoving;
+        matchedStock.packedStocks -= (agrade + bgrade + nonMoving);
+        await matchedStock.save();
+
+        // === CASE 2: Given date is newer than last saved stock ===
+      } else if (!latestStockDate || givenDate.getTime() > latestStockDate.getTime()) {
+        await TotalStocks.create({
+          user: userId,
+          date: givenDate,
+          agradeStocks: latestStock.agradeStocks - agrade,
+          bgradeStocks: latestStock.bgradeStocks - bgrade,
+          nonMovingStocks: latestStock.nonMovingStocks - nonMoving,
+          packedStocks: latestStock.packedStocks - (agrade + bgrade + nonMoving),
+        });
+
+        // === CASE 3: Given date is older than latest stock (optional error or ignore) ===
+      } else {
+        return res.status(400).json({ success: false, message: "Cannot add stock to a past date older than last recorded." });
+      }
+
+
+      // const dispatchEntry = new DispatchOutMes({
+      //   userId,
+      //   date,
+      //   invoiceNo,
+      //   items,
+      //   totalPieces,
+      // });
+
+      // await dispatchEntry.save();
 
       // Validate mtdType
       const validMtdTypes = ["totaldispatch", "production", "packing", "sales"];
@@ -1114,6 +1207,7 @@ const updateDispatchOutMesData = async (req, res) => {
           monthReport: {},
         };
       }
+      
       const monthData = yearData.months[normalizedMonth];
 
       if (!monthData.days[normalizedDay]) {
@@ -1139,6 +1233,16 @@ const updateDispatchOutMesData = async (req, res) => {
 
       report.markModified("yearReport");
       await report.save();
+
+      const dispatchEntry = new DispatchOutMes({
+        userId,
+        date,
+        invoiceNo,
+        items,
+        totalPieces,
+      });
+
+      await dispatchEntry.save();
 
       res.status(200).json({ success: true, message: "Data Saved Successfully" });
 
@@ -1195,7 +1299,7 @@ const updateInvoiceMesData = async (req, res) => {
 
     const date = new Date(Date.UTC(Number(normalizedYear), monthIndex - 1, Number(normalizedDay), 0, 0, 0));
 
-    console.log("date", date);
+    // console.log("date", date);
 
     const existingInvoice = await Invoice.findOne({ invoiceNo })
 

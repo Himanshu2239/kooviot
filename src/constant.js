@@ -1,4 +1,5 @@
 export const DB_NAME = "youtube";
+// export const DB_NAME = "rml-new";
 export const MAX_LIMIT_OF_DATA = "15000kb";
 export const STORE_STATIC_DATA = "public";
 export const APPLICATION_ROLE = ["admin", "salesperson", "production", "packing", "dispatchout", "invoice"];

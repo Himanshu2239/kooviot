@@ -56,7 +56,7 @@ router.route('/productionMesData/update').post(verifyjwt, updateProductionMesDat
 router.route('/packingMesData/update').post(verifyjwt, updatePackinigMesData);
 router.route('/packingRejMes/update').post(verifyjwt, updatePackingRejMes);
 router.route('/dispachOutMes/update').post(verifyjwt, updateDispatchOutMesData)
-router.route('/invoiceMesData/update').post(verifyjwt, updateInvoiceMesData);
+// router.route('/invoiceMesData/update').post(verifyjwt, updateInvoiceMesData);
 
 
 export default router;
